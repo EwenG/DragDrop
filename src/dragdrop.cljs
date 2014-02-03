@@ -4,7 +4,8 @@
             [domina.css :refer [sel]]
             [domina :refer [single-node]]
             [om.core :as om :include-macros true]
-            [om.dom :as dom :include-macros true])
+            [om.dom :as dom :include-macros true]
+            [goog.style :as gstyle])
   (:require-macros [cljs.core.async.macros :refer [go go-loop]]))
 
 
@@ -104,41 +105,54 @@
 
 
 
+
+(comment
+
+(defn gsize->vec [size]
+  [(.-width size) (.-height size)])
+
 (defn dragging? [owner]
   (om/get-state owner :dragging))
 
 
-(defn draggable [item owner]
+(defn draggable [cursor owner]
   (reify
     om/IDidMount
     (did-mount [_ node]
-      (:drag-fn (om/get-state owner)))
-    om/IWillUpdate
-    (will-update [_ next-props next-state]
-
-      )
+               (let [dims (-> (om/get-node owner "draggable")
+                              gstyle/getSize gsize->vec)]
+                 (om/set-state! owner :dimensions dims))
+               (let [drag-fn (:drag-fn (om/get-state owner))
+                     mult-drag (-> (drag-fn node) async/mult)]
+                 (om/set-state! owner :drag-mult mult-drag)
+                 (go-loop [move-chan (->> (async/tap mult-drag (async/chan))
+                                          (async/filter< #(or (:handle %) (:drag %))))]
+                          (when-let [{:keys [left top]} (async/<! move-chan)]
+                            (om/set-state! owner :dragging true)
+                            (om/set-state! owner :location [left top])
+                            (recur move-chan)))))
+    om/IWillUnmount
+    (will-unmount [_ _]
+                  (-> (om/get-state! owner :drag-mult)
+                      async/muxch*
+                      async/close!))
     om/IRenderState
     (render-state [_ state]
-      (let [style (cond
-                    (dragging? owner)
-                    (let [[x y] (:location state)
-                          [w h] (:dimensions state)]
-                      #js {:position "absolute"
-                           :top y :left x :z-index 1
-                           :width w :height h})
-                    :else
-                    #js {:position "static" :z-index 0})]
-        (dom/div
-          #js {:className (when (dragging? owner) "dragging")
-               :style style
-               :ref "draggable"
-               :onMouseDown #(drag-start % @item owner)
-               :onMouseUp #(drag-stop % @item owner)
-               :onMouseMove #(drag % @item owner)}
-          (om/build (:view state) item))))))
-
-(defn item [the-item owner]
-  (om/component (dom/span nil (str "Item " (:title the-item)))))
+                  (let [style (cond
+                               (dragging? owner)
+                               (let [[x y] (:location state)
+                                     [w h] (:dimensions state)]
+                                 #js {:position "absolute"
+                                      :top (- y (/ h 2)) :left (- x (/ w 2)) :z-index 1
+                                      :width w :height h})
+                               :else
+                               #js {:position "static" :z-index 0})]
+                    (dom/div
+                     #js {:className (if (dragging? owner)
+                                       "dragging draggable"
+                                       "draggable")
+                          :style style
+                          :ref "draggable"})))))
 
 (def app-state
   (atom {:title "drag-me"}))
@@ -148,12 +162,10 @@
     (om/component
       (dom/div nil
         (dom/h2 nil "Draggable example")
-        (om/build draggable app {:init-state {:view item
-                                              :drag-fn dragE}}))))
-  (.getElementById js/document "app"))
+        (om/build draggable app {:init-state {:drag-fn dragE}}))))
+         (-> (sel "#app") single-node))
 
 
-(comment
 
 
   (def test-drag-e (dragE (single-node (sel ".draggable"))))
