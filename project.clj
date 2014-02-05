@@ -13,9 +13,11 @@
 
   :source-paths ["src"]
 
+  :profiles {:dev {:dependencies [[com.cemerick/clojurescript.test "0.2.2"]]}}
+
   :cljsbuild {
     :builds [{:id "dev"
-              :source-paths ["src"]
+              :source-paths ["src" "test"]
               :compiler {
                 :output-to "resources/cljs/dragdrop.js"
                 :output-dir "resources/cljs/"

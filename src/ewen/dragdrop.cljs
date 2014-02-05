@@ -1,4 +1,5 @@
-(ns dragdrop
+(ns ewen.dragdrop
+  "A drag and drop library written in clojurescript and built apon core.async."
   (:require [cljs.core.async :as async]
             [domina.events :as events :refer [listen! unlisten! unlisten-by-key!]]
             [domina.css :refer [sel]]
@@ -9,9 +10,6 @@
   (:require-macros [cljs.core.async.macros :refer [go go-loop]]))
 
 
-
-
-(enable-console-print!)
 
 
 (if (js* "'ontouchstart' in window")
@@ -82,18 +80,16 @@
     (async/toggle mix {move-chan {:mute true}})
     (go-loop [drop-chan-copy (async/tap mult-drop (async/chan))]
              (when (async/<! drop-chan-copy)
-               (do
-                 (async/toggle mix {move-chan {:mute true}})
-                 (async/toggle mix {drop-mix {:mute true}})
-                 (async/toggle mix {handle-mix {:mute false}})
-                 (recur drop-chan-copy))))
+               (async/toggle mix {move-chan {:mute true}})
+               (async/toggle mix {drop-mix {:mute true}})
+               (async/toggle mix {handle-mix {:mute false}})
+               (recur drop-chan-copy)))
     (go-loop [handle-chan-copy (async/tap mult-handle (async/chan))]
              (when (async/<! handle-chan-copy)
-               (do
-                 (async/toggle mix {move-chan {:mute false}})
-                 (async/toggle mix {drop-mix {:mute false}})
-                 (async/toggle mix {handle-mix {:mute true}})
-                 (recur handle-chan-copy))))
+               (async/toggle mix {move-chan {:mute false}})
+               (async/toggle mix {drop-mix {:mute false}})
+               (async/toggle mix {handle-mix {:mute true}})
+               (recur handle-chan-copy)))
     (go-loop [copy-out (async/tap mult-out (async/chan))]
              (when (async/<! copy-out)
                (recur copy-out))
