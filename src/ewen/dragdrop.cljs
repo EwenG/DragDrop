@@ -1,34 +1,44 @@
 (ns ewen.dragdrop
-  "A drag and drop library written in clojurescript and built apon core.async."
+  "A drag and drop library written in clojurescript."
   (:require [cljs.core.async :as async]
+            [cljs.core.async.impl.channels :refer [ManyToManyChannel]]
             [domina.events :as events :refer [listen! unlisten! unlisten-by-key!]]
             [domina.css :refer [sel]]
             [domina :refer [single-node]]
             [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]
-            [goog.style :as gstyle])
-  (:require-macros [cljs.core.async.macros :refer [go go-loop]]))
+            [goog.style :as gstyle]
+            [schema.core :as s]
+            [schema.utils :as utils])
+  (:require-macros [cljs.core.async.macros :refer [go go-loop]]
+                   [schema.macros :as sm]))
 
 
 
 
-(if (js* "'ontouchstart' in window")
-  (def event-types {:down :touchstart
-                    :up :touchend
-                    :move :touchmove
-                    :over :touchstart
-                    :out :touchend
-                    :click "tap"})
-  (def event-types {:down :mousedown
-                    :up :mouseup
-                    :move :mousemove
-                    :over :mouseover
-                    :out :mouseout
-                    :click :mouseclick}))
+
+(def event-types
+  (if (js* "'ontouchstart' in window")
+    {:down :touchstart
+     :up :touchend
+     :move :touchmove
+     :over :touchstart
+     :out :touchend
+     :click "tap"}
+    {:down :mousedown
+     :up :mouseup
+     :move :mousemove
+     :over :mouseover
+     :out :mouseout
+     :click :mouseclick}))
 
 
+(sm/defschema event-types-s (->> (keys event-types)
+                                 (apply s/enum)))
 
-(defn extract-events [src event-type]
+
+(sm/defn extract-events :- ManyToManyChannel
+         [src :- js/HTMLElement event-type :- event-types-s]
   (let [chan (async/chan)
         unlisten-chan (async/chan)
         listen-key (listen! src event-type
@@ -40,15 +50,18 @@
     chan))
 
 
-(defn- dropE [dom-node]
-  (->> (extract-events dom-node (:up event-types))
-       (async/map< (fn [event]
-                     (events/prevent-default event)
-                     {:drop dom-node
-                      :left (:clientX event)
-                      :top (:clientY event)}))))
 
-(defn- handleE [dom-node]
+(sm/defn dropE :- ManyToManyChannel
+         [dom-node :- js/HTMLElement]
+         (->> (extract-events dom-node (:up event-types))
+              (async/map< (fn [event]
+                            (events/prevent-default event)
+                            {:drop dom-node
+                             :left (:clientX event)
+                             :top (:clientY event)}))))
+
+(sm/defn handleE :- ManyToManyChannel
+         [dom-node :- js/HTMLElement]
   (->> (extract-events dom-node (:down event-types))
        (async/map< (fn [event]
                      (events/prevent-default event)
@@ -56,7 +69,8 @@
                       :left (:clientX event)
                       :top (:clientY event)}))))
 
-(defn- moveE [dom-node]
+(sm/defn moveE :- ManyToManyChannel
+  [dom-node :- js/HTMLElement]
   (->> (extract-events dom-node (:move event-types))
        (async/map< (fn [event]
                      (events/prevent-default event)
@@ -64,7 +78,8 @@
                       :left (:clientX event)
                       :top (:clientY event)}))))
 
-(defn dragE [dom-node]
+(sm/defn dragE :- ManyToManyChannel
+  [dom-node :- js/HTMLElement]
   (let [out-chan (async/chan)
         mult-out (async/mult out-chan)
         mix (async/mix out-chan)
@@ -100,9 +115,73 @@
 
 
 
-
-
 (comment
+
+  (enable-console-print!)
+
+
+  (set! schema.utils/type-of identity)
+
+  (defrecord FnSchema [output-schema input-schemas] ;; input-schemas sorted by arity
+  s/Schema
+  (walker [this]
+    (fn [x]
+      (if (fn? x)
+        x
+        (sm/validation-error this x (list 'fn? (su/value-name x))))))
+  (explain [this]
+    (if (> (count input-schemas) 1)
+      (list* '=>* (explain output-schema) (map s/explain-input-schema input-schemas))
+      (list* '=> (explain output-schema) (s/explain-input-schema (first input-schemas))))))
+
+
+
+  (defn- ii ^{:a "r"} [x] x)
+  (defn yy "rt" [x] x)
+  (meta yy)
+  (meta (with-meta yy {:a "e"}))
+
+
+  (sm/defn with-full-name :- s/Str
+                 [m :- (sm/=> s/Str s/Str)]
+                 m)
+
+  (sm/=> s/Str s/Str)
+
+  (js-keys with-full-name)
+  (.-schema$core$Schema$explain$arity$1 with-full-name)
+  (schema.utils/class-schema (schema.utils/type-of with-full-name))
+
+  (sm/with-fn-validation (with-full-name prn))
+  (sm/with-fn-validation (with-full-name 3))
+
+  (s/explain (s/fn-schema with-full-name))
+
+
+  (def OddLong (s/both (s/pred odd?) s/Int))
+
+  (def OddLongString
+    (s/both s/Str (s/pred #(odd? (parse-long %)) 'odd-str?)))
+
+  (sm/defn ^{:tag String} simple-validated-defn-new :- OddLongString
+           "I am a simple schema fn"
+           {:metadata :bla}
+           [arg0 :- OddLong]
+           (str arg0))
+
+  (def +simple-validated-defn-schema+
+    (sm/=> OddLongString OddLong))
+
+  (= +simple-validated-defn-schema+ (s/fn-schema simple-validated-defn-new))
+
+  (js-keys simple-validated-defn-new)
+  (su/class-schema (su/type-of simple-validated-defn-new))
+
+
+  (type (s/fn-schema with-full-name))
+
+  (s/explain (s/fn-schema with-full-name))
+
 
 (defn gsize->vec [size]
   [(.-width size) (.-height size)])
@@ -138,20 +217,23 @@
                                (dragging? owner)
                                (let [[x y] (:location state)
                                      [w h] (:dimensions state)]
-                                 #js {:position "absolute"
-                                      :top (- y (/ h 2)) :left (- x (/ w 2)) :z-index 1
-                                      :width w :height h})
+                                 (js-obj "position" "absolute"
+                                         "top" (- y (/ h 2))
+                                         "left" (- x (/ w 2))
+                                         "z-index" 1
+                                         "width" w "height" h))
                                :else
-                               #js {:position "static" :z-index 0})]
+                               (js-obj "position" "static" "z-index" 0))]
                     (dom/div
-                     #js {:className (if (dragging? owner)
-                                       "dragging draggable"
-                                       "draggable")
-                          :style style
-                          :ref "draggable"})))))
+                     (js-obj "className" (if (dragging? owner)
+                                           "dragging draggable"
+                                           "draggable")
+                             "style" style
+                             "ref" "draggable"))))))
 
 (def app-state
   (atom {:title "drag-me"}))
+
 
 (om/root app-state
   (fn [app owner]
