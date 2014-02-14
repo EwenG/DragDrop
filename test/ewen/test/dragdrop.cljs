@@ -12,51 +12,38 @@
             [schema.test]))
 
 (enable-console-print!)
-(use-fixtures :once schema.test/validate-schemas)
+#_(use-fixtures :once schema.test/validate-schemas)
 
-#_(deftest ^:async extract-events
+(deftest ^:async extract-events
   (let [drag-chan (dd/extract-events
                    (-> (sel ".draggable")
                        single-node)
                    (:down dd/event-types))
-
         ;Buffer used to complete the async test
         complete (async/chan)]
+
     (go
-     ;First, test that when receive the generated event
+     (dispatch! (-> (sel ".draggable") single-node)
+                (:down dd/event-types) nil)
+     ;First, test that we receive the generated event
      (when (not= "mousedown"
-                    (-> (async/<! drag-chan) event-type))
-          (async/put! complete (js/Error.)))
-     ;Then test that the event handler has been correctly unregister,
-     ;we should receive a timeout
-        ;Async get with a timeout
-        )
+                 (-> (async/<! drag-chan) event-type))
+       (async/put! complete (js/Error.)))
+     ;Close! should unregister the event listener
+     (async/close! drag-chan)
+     ;Dispatch an event. This event SHOULD NOT be captured since the event
+     ;listener has been unregistered.
+     (dispatch! (-> (sel ".draggable") single-node)
+                (:down dd/event-types) nil)
+     ;Then test that the event handler has been correctly unregister, and the channel closed.
+     ;We should receive nil.
+     (when (not= nil (async/<! drag-chan))
+       (async/put! complete (js/Error.)))
+     ;Everything went right, complete the test.
+     (async/put! complete true))
     ;Dispatch an event. This event should be correctly captured.
-    (dispatch! (-> (sel ".draggable") single-node)
-               (:down dd/event-types) nil)
-    ;Close! should unregister the event listener
-    (async/close! drag-chan)
-    ;Dispatch an event. This event SHOULD NOT be captured since the event
-    ;listener has been unregistered.
-    ))
-
-
-(deftest uu
-  (is (= true true)))
-
-(deftest uu2
-  (is (= true true)))
-
-(deftest ^:async pointless-counting
-  (let [inputs (repeatedly 10000 #(go 1))
-        complete (async/chan)]
-    (go (throw (js/Error. "e")))
-    (go (is (= 10000 (async/<! (reduce
-                           (fn [sum in]
-                             (go (+ (async/<! sum) (async/<! in))))
-                           inputs))))
-        (async/>! complete true))
     (block-or-done complete)))
+
 
 
 

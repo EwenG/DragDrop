@@ -78,6 +78,7 @@
                       :left (:clientX event)
                       :top (:clientY event)}))))
 
+
 (sm/defn dragE :- ManyToManyChannel
   [dom-node :- js/HTMLElement]
   (let [out-chan (async/chan)
@@ -114,6 +115,34 @@
     (async/tap mult-out (async/chan))))
 
 
+(sm/defn long-pressE :- ManyToManyChannel
+         [dom-node :- js/HTMLElement press-time :- s/Num]
+         (let [handle-chan (handleE dom-node)
+               long-press-chan (async/chan)]
+           (go-loop [drop-chan (dropE dom-node)
+                     drop-chan-mult (async/mult drop-chan)]
+                    (when-let [handle-event (async/<! handle-chan)]
+                      (when-not (-> (async/alts! [(async/tap drop-chan-mult (async/chan))
+                                                  (async/timeout press-time)])
+                                    first)
+                        (when-not (async/put! long-press-chan handle-event)
+                          (prn "close")
+                          (async/close! handle-chan)
+                          (async/close! drop-chan)))
+                      (async/untap-all drop-chan-mult)
+                      (recur drop-chan drop-chan-mult)))
+           long-press-chan))
+
+#_(def uu (long-pressE (single-node (sel ".draggable")) 2000))
+#_(go-loop [] (prn (async/<! uu)) (recur))
+
+
+#_(def oo (dropE (single-node (sel ".draggable"))))
+#_(def oo-mult (async/mult oo))
+#_(go-loop [gg (async/tap oo-mult (async/chan))] (prn (async/alts! [gg
+                                 (async/timeout 2000)]))
+           (async/untap-all oo-mult)
+           (recur (async/tap oo-mult (async/chan))))
 
 (comment
 
