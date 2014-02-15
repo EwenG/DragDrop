@@ -42,13 +42,19 @@
    :top (:clientY event)})
 
 
-(sm/defn extract-events :- [(s/one ManyToManyChannel "evt-stream")
-                            (s/one (sm/=> nil) "unlisten")]
-         [src :- js/HTMLElement event-type :- event-types-s]
-         (let [evt-stream (F-cljs/receiverE)
-               listen-key (listen! src (event-type event-types)
-                                   #(F-cljs/sendEvent evt-stream %))]
-           [evt-stream #(dorun (map unlisten-by-key! listen-key))]))
+(sm/defn extract-events
+         :- [(s/one ManyToManyChannel "evt-stream")
+             (s/one (sm/=> nil) "unlisten")]
+         ([src :- js/HTMLElement event-type :- event-types-s]
+          (let [evt-stream (F-cljs/receiverE)
+                listen-key (listen! src (event-type event-types)
+                                    #(F-cljs/sendEvent evt-stream %))]
+            [evt-stream #(dorun (map unlisten-by-key! listen-key))]))
+         ([event-type :- event-types-s]
+          (let [evt-stream (F-cljs/receiverE)
+                listen-key (listen! (event-type event-types)
+                                    #(F-cljs/sendEvent evt-stream %))]
+            [evt-stream #(dorun (map unlisten-by-key! listen-key))])))
 
 (defn dropEE [up-events]
   (-> (fn [event]
@@ -128,9 +134,9 @@
                (let [dims (-> (om/get-node owner "draggable")
                               gstyle/getSize gsize->vec)]
                  (om/set-state! owner :dimensions dims))
-               (let [[up-events up-unlisten] (extract-events node :up)
+               (let [[up-events up-unlisten] (extract-events :up)
                      [down-events down-unlisten] (extract-events node :down)
-                     [move-events move-unlisten] (extract-events node :move)
+                     [move-events move-unlisten] (extract-events :move)
                      dd-events (create-dd down-events move-events up-events)]
                  (om/set-state! owner :unlisten (comp up-unlisten
                                                       down-unlisten
@@ -138,11 +144,16 @@
                  (om/set-state! owner :dd-events dd-events)
 
                  (->> (F-cljs/filterE dd-events #(:handle %))
-                      (F-cljs/mapE #(om/set-state! owner :dragging true)))
+                      (F-cljs/mapE (fn [{:keys [left top]}]
+                                     (om/set-state! owner :dragging true)
+                                     (om/set-state! owner :location [left top]))))
 
                  (->> (F-cljs/filterE dd-events #(:drag %))
                       (F-cljs/mapE (fn [{:keys [left top]}]
-                                     (om/set-state! owner :location [left top]))))))
+                                     (om/set-state! owner :location [left top]))))
+
+                 (->> (F-cljs/filterE dd-events #(:drop %))
+                      (F-cljs/mapE #(om/set-state! owner :dragging false)))))
     om/IWillUnmount
     (will-unmount [_ _]
                   ((om/get-state! owner :unlisten)))
