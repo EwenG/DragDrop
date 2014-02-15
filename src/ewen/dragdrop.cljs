@@ -9,7 +9,7 @@
             [om.dom :as dom :include-macros true]
             [goog.style :as gstyle]
             [schema.core :as s]
-            [schema.utils :as utils])
+            [com.ewen.flapjax-cljs :as F-cljs])
   (:require-macros [cljs.core.async.macros :refer [go go-loop]]
                    [schema.macros :as sm]))
 
@@ -36,8 +36,48 @@
 (sm/defschema event-types-s (->> (keys event-types)
                                  (apply s/enum)))
 
+(defn event->dd-event [event event-type]
+  {event-type (events/target event)
+   :left (:clientX event)
+   :top (:clientY event)})
 
-(sm/defn extract-events :- ManyToManyChannel
+
+(sm/defn extract-events :- [(s/one ManyToManyChannel "evt-stream")
+                            (s/one (sm/=> nil) "unlisten")]
+         [src :- js/HTMLElement event-type :- event-types-s]
+         (let [evt-stream (F-cljs/receiverE)
+               listen-key (listen! src (event-type event-types)
+                                   #(F-cljs/sendEvent evt-stream %))]
+           [evt-stream #(dorun (map unlisten-by-key! listen-key))]))
+
+(defn dropEE [up-events]
+  (-> (fn [event]
+        (events/prevent-default event)
+        (F-cljs/oneE (event->dd-event event :drop)))
+      (F-cljs/mapE up-events)))
+
+(defn moveEE [move-events]
+  (-> (fn [event]
+               (events/prevent-default event)
+               (event->dd-event event :drag))
+      (F-cljs/mapE move-events)))
+
+(defn dragEE [down-events move-events]
+  (-> (fn [event]
+        (-> (F-cljs/oneE (event->dd-event event :handle))
+            (F-cljs/mergeE (moveEE move-events))))
+      (F-cljs/mapE down-events)))
+
+(defn create-dd
+         [down-events move-events up-events]
+  (-> (F-cljs/mergeE (dropEE up-events)
+                    (dragEE down-events move-events))
+      F-cljs/switchE))
+
+
+
+
+#_(sm/defn extract-events :- ManyToManyChannel
          [src :- js/HTMLElement event-type :- event-types-s]
   (let [chan (async/chan)
         unlisten-chan (async/chan)
@@ -51,7 +91,7 @@
 
 
 
-(sm/defn dropE :- ManyToManyChannel
+#_(sm/defn dropE :- ManyToManyChannel
          [dom-node :- js/HTMLElement]
          (->> (extract-events dom-node (:up event-types))
               (async/map< (fn [event]
@@ -60,7 +100,7 @@
                              :left (:clientX event)
                              :top (:clientY event)}))))
 
-(sm/defn handleE :- ManyToManyChannel
+#_(sm/defn handleE :- ManyToManyChannel
          [dom-node :- js/HTMLElement]
   (->> (extract-events dom-node (:down event-types))
        (async/map< (fn [event]
@@ -69,7 +109,7 @@
                       :left (:clientX event)
                       :top (:clientY event)}))))
 
-(sm/defn moveE :- ManyToManyChannel
+#_(sm/defn moveE :- ManyToManyChannel
   [dom-node :- js/HTMLElement]
   (->> (extract-events dom-node (:move event-types))
        (async/map< (fn [event]
@@ -79,7 +119,7 @@
                       :top (:clientY event)}))))
 
 
-(sm/defn dragE :- ManyToManyChannel
+#_(sm/defn dragE :- ManyToManyChannel
   [dom-node :- js/HTMLElement]
   (let [out-chan (async/chan)
         mult-out (async/mult out-chan)
@@ -115,7 +155,7 @@
     (async/tap mult-out (async/chan))))
 
 
-(sm/defn long-pressE :- ManyToManyChannel
+#_(sm/defn long-pressE :- ManyToManyChannel
          [dom-node :- js/HTMLElement press-time :- s/Num]
          (let [handle-chan (handleE dom-node)
                long-press-chan (async/chan)]
@@ -147,6 +187,19 @@
 (comment
 
   (enable-console-print!)
+
+  (def jjjk (single-node (sel ".draggable")))
+  (def iii (create-dd (first (extract-events jjjk :down))
+                      (first (extract-events jjjk :move))
+                      (first (extract-events jjjk :up))))
+  (F-cljs/mapE prn iii)
+
+
+  (def uu (extract-events (single-node (sel ".draggable")) :down))
+  (def ss (first uu))
+  (def unlisten (second uu))
+  (F-cljs/mapE prn ss)
+  (unlisten)
 
 
   (set! schema.utils/type-of identity)

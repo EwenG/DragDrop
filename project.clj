@@ -6,7 +6,7 @@
                  [org.clojure/clojurescript "0.0-2156"]
                  [org.clojure/core.async "0.1.0-SNAPSHOT"]
                  [domina "1.0.2"]
-                 [om "0.3.5"]
+                 [com.ewen.flapjax-cljs "1.0.1-SNAPSHOT"]
                  [com.facebook/react "0.8.0.1"]
                  [prismatic/schema "0.2.1-SNAPSHOT"]]
 
@@ -14,7 +14,8 @@
 
   :source-paths ["src"]
 
-  :profiles {:dev {:dependencies [[com.cemerick/clojurescript.test "0.3.0-SNAPSHOT"]]}}
+  :profiles {:dev {:dependencies [[om "0.3.5"]
+                                  [com.cemerick/clojurescript.test "0.3.0-SNAPSHOT"]]}}
 
   :cljsbuild {
     :builds [{:id "dev"
