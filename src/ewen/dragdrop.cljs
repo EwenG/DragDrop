@@ -1,17 +1,14 @@
 (ns ewen.dragdrop
   "A drag and drop library written in clojurescript."
-  (:require [cljs.core.async :as async]
-            [cljs.core.async.impl.channels :refer [ManyToManyChannel]]
-            [domina.events :as events :refer [listen! unlisten! unlisten-by-key!]]
+  (:require [domina.events :as events :refer [listen! unlisten! unlisten-by-key!]]
             [domina.css :refer [sel]]
             [domina :refer [single-node]]
             [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]
             [goog.style :as gstyle]
             [schema.core :as s]
-            [com.ewen.flapjax-cljs :as F-cljs])
-  (:require-macros [cljs.core.async.macros :refer [go go-loop]]
-                   [schema.macros :as sm]))
+            [ewen.flapjax-cljs :as F-cljs])
+  (:require-macros [schema.macros :as sm]))
 
 
 
@@ -42,19 +39,17 @@
    :top (:clientY event)})
 
 
-(sm/defn extract-events
-         :- [(s/one ManyToManyChannel "evt-stream")
-             (s/one (sm/=> nil) "unlisten")]
-         ([src :- js/HTMLElement event-type :- event-types-s]
-          (let [evt-stream (F-cljs/receiverE)
-                listen-key (listen! src (event-type event-types)
-                                    #(F-cljs/sendEvent evt-stream %))]
-            [evt-stream #(dorun (map unlisten-by-key! listen-key))]))
-         ([event-type :- event-types-s]
-          (let [evt-stream (F-cljs/receiverE)
-                listen-key (listen! (event-type event-types)
-                                    #(F-cljs/sendEvent evt-stream %))]
-            [evt-stream #(dorun (map unlisten-by-key! listen-key))])))
+(defn extract-events
+  ([src event-type]
+   (let [evt-stream (F-cljs/receiverE)
+         listen-key (listen! src (event-type event-types)
+                             #(F-cljs/sendEvent evt-stream %))]
+     [evt-stream #(dorun (map unlisten-by-key! listen-key))]))
+  ([event-type]
+   (let [evt-stream (F-cljs/receiverE)
+         listen-key (listen! (event-type event-types)
+                             #(F-cljs/sendEvent evt-stream %))]
+     [evt-stream #(dorun (map unlisten-by-key! listen-key))])))
 
 (defn dropEE [up-events]
   (-> (fn [event]
@@ -143,16 +138,16 @@
                                                       move-unlisten))
                  (om/set-state! owner :dd-events dd-events)
 
-                 (->> (F-cljs/filterE dd-events #(:handle %))
+                 (->> (F-cljs/filterE #(:handle %) dd-events)
                       (F-cljs/mapE (fn [{:keys [left top]}]
                                      (om/set-state! owner :dragging true)
                                      (om/set-state! owner :location [left top]))))
 
-                 (->> (F-cljs/filterE dd-events #(:drag %))
+                 (->> (F-cljs/filterE #(:drag %) dd-events)
                       (F-cljs/mapE (fn [{:keys [left top]}]
                                      (om/set-state! owner :location [left top]))))
 
-                 (->> (F-cljs/filterE dd-events #(:drop %))
+                 (->> (F-cljs/filterE #(:drop %) dd-events)
                       (F-cljs/mapE #(om/set-state! owner :dragging false)))))
     om/IWillUnmount
     (will-unmount [_ _]
