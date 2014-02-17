@@ -93,7 +93,7 @@
                      [move-events move-unlisten] (dd/extract-events :move)
                      dd-events (dd/create-dd down-events
                                              (-> move-events
-                                                 (F-cljs/delayE (F-cljs/constantB 500)))
+                                                 <font color="red">(F-cljs/delayE (F-cljs/constantB 500))</font>)
                                              up-events)]
                  (om/set-state! owner :unlisten (comp up-unlisten
                                                       down-unlisten
@@ -162,10 +162,10 @@
                       (F-cljs/mapE (fn [{:keys [left top]}]
                                      (om/set-state! owner :dragging true)
                                      (om/set-state! owner :location [left top])
-                                     (-> (sel "#hook-div")
+                                     <font color="red">(-> (sel "#hook-div")
                                      single-node
                                      (.-innerHTML)
-                                     (set! "Handled!")))))
+                                     (set! "Handled!"))</font>)))
 
                  (->> (F-cljs/filterE #(:drag %) dd-events)
                       (F-cljs/mapE (fn [{:keys [left top]}]
@@ -173,10 +173,10 @@
 
                  (->> (F-cljs/filterE #(:drop %) dd-events)
                       (F-cljs/mapE (fn [] (om/set-state! owner :dragging false)
-                                     (-> (sel "#hook-div")
+                                     <font color="red">(-> (sel "#hook-div")
                                      single-node
                                      (.-innerHTML)
-                                     (set! "Droped!")))))))
+                                     (set! "Droped!"))</font>)))))
     om/IWillUnmount
     (will-unmount [_ _]
                   ((om/get-state! owner :unlisten)))
@@ -217,9 +217,9 @@
                (let [[up-events up-unlisten] (dd/extract-events :up)
                      [down-events down-unlisten] (dd/extract-events node :down)
                      [move-events move-unlisten] (dd/extract-events :move)
-                     dd-events (dd/create-dd (dd/long-press down-events up-events 1000)
+                     dd-events (dd/create-dd <font color="red">(dd/long-press down-events up-events 1000)
                                              move-events
-                                             up-events)]
+                                             up-events)</font>]
                  (om/set-state! owner :unlisten (comp up-unlisten
                                                       down-unlisten
                                                       move-unlisten))
