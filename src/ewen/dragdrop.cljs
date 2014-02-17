@@ -78,6 +78,21 @@
 
 
 
+
+(defn E->EE [E]
+  (F-cljs/mapE #(F-cljs/oneE %) E))
+
+(defn long-press [down-events up-events delay-time]
+  (let [down-EE (E->EE down-events)
+        delay-fn #(F-cljs/delayE % (F-cljs/constantB delay-time))
+        down-EE (F-cljs/mapE delay-fn down-EE)
+        up-EE (E->EE up-events)]
+    (->> (F-cljs/mergeE down-EE up-EE)
+         F-cljs/switchE
+         (F-cljs/filterE #(= (-> (:down event-types) name)
+                             (events/event-type %))))))
+
+
 (comment
 
   (enable-console-print!)
@@ -115,76 +130,7 @@
 
 
 
-(defn gsize->vec [size]
-  [(.-width size) (.-height size)])
 
-(defn dragging? [owner]
-  (om/get-state owner :dragging))
-
-
-(defn draggable [cursor owner]
-  (reify
-    om/IDidMount
-    (did-mount [_ node]
-               (let [dims (-> (om/get-node owner "draggable")
-                              gstyle/getSize gsize->vec)]
-                 (om/set-state! owner :dimensions dims))
-               (let [[up-events up-unlisten] (extract-events :up)
-                     [down-events down-unlisten] (extract-events node :down)
-                     [move-events move-unlisten] (extract-events :move)
-                     dd-events (create-dd down-events move-events up-events)]
-                 (om/set-state! owner :unlisten (comp up-unlisten
-                                                      down-unlisten
-                                                      move-unlisten))
-                 (om/set-state! owner :dd-events dd-events)
-
-                 (->> (F-cljs/filterE #(:handle %) dd-events)
-                      (F-cljs/mapE (fn [{:keys [left top]}]
-                                     (om/set-state! owner :dragging true)
-                                     (om/set-state! owner :location [left top]))))
-
-                 (->> (F-cljs/filterE #(:drag %) dd-events)
-                      (F-cljs/mapE (fn [{:keys [left top]}]
-                                     (om/set-state! owner :location [left top]))))
-
-                 (->> (F-cljs/filterE #(:drop %) dd-events)
-                      (F-cljs/mapE #(om/set-state! owner :dragging false)))))
-    om/IWillUnmount
-    (will-unmount [_ _]
-                  ((om/get-state! owner :unlisten)))
-    om/IRenderState
-    (render-state [_ state]
-                  (let [style (cond
-                               (dragging? owner)
-                               (let [[x y] (:location state)
-                                     [w h] (:dimensions state)]
-                                 (js-obj "position" "absolute"
-                                         "top" (- y (/ h 2))
-                                         "left" (- x (/ w 2))
-                                         "z-index" 1
-                                         "width" w "height" h))
-                               :else
-                               (js-obj "position" "static" "z-index" 0))]
-                    (dom/div
-                     (js-obj "className" (if (dragging? owner)
-                                           "dragging draggable"
-                                           "draggable")
-                             "style" style
-                             "ref" "draggable"))))))
-
-(def app-state
-  (atom {:title "drag-me"}))
-
-
-
-
-(om/root app-state
-  (fn [app owner]
-    (om/component
-      (dom/div nil
-        (dom/h2 nil "Draggable example")
-        (om/build draggable app {:init-state {}}))))
-         (-> (sel "#app") single-node))
 
 
 
