@@ -18,6 +18,7 @@ goog.require('domina');
 goog.require('om.dom');
 goog.require('goog.style');
 goog.require('domina.css');
+alert('ontouchstart' in window);
 ewen.dragdrop.event_types = (cljs.core.truth_('ontouchstart' in window)?new cljs.core.PersistentArrayMap(null, 6, [new cljs.core.Keyword(null,"down","down",1016993812),new cljs.core.Keyword(null,"touchstart","touchstart",3730278389),new cljs.core.Keyword(null,"up","up",1013907981),new cljs.core.Keyword(null,"touchend","touchend",4489339054),new cljs.core.Keyword(null,"move","move",1017261891),new cljs.core.Keyword(null,"touchmove","touchmove",1378440962),new cljs.core.Keyword(null,"over","over",1017327686),new cljs.core.Keyword(null,"touchstart","touchstart",3730278389),new cljs.core.Keyword(null,"out","out",1014014656),new cljs.core.Keyword(null,"touchend","touchend",4489339054),new cljs.core.Keyword(null,"click","click",1108654330),"tap"], null):new cljs.core.PersistentArrayMap(null, 6, [new cljs.core.Keyword(null,"down","down",1016993812),new cljs.core.Keyword(null,"mousedown","mousedown",1600748089),new cljs.core.Keyword(null,"up","up",1013907981),new cljs.core.Keyword(null,"mouseup","mouseup",2256972146),new cljs.core.Keyword(null,"move","move",1017261891),new cljs.core.Keyword(null,"mousemove","mousemove",1601016168),new cljs.core.Keyword(null,"over","over",1017327686),new cljs.core.Keyword(null,"mouseover","mouseover",1601081963),new cljs.core.Keyword(null,"out","out",1014014656),new cljs.core.Keyword(null,"mouseout","mouseout",894298107),new cljs.core.Keyword(null,"click","click",1108654330),new cljs.core.Keyword(null,"mouseclick","mouseclick",2025167733)], null));
 /**
 * 
@@ -28,13 +29,13 @@ ewen.dragdrop.event__GT_dd_event = (function event__GT_dd_event(event,event_type
 ewen.dragdrop.extract_events = (function() {
 var extract_events = null;
 var extract_events__1 = (function (event_type){var evt_stream = ewen.flapjax_cljs.receiverE.call(null);var listen_key = domina.events.listen_BANG_.call(null,event_type.call(null,ewen.dragdrop.event_types),((function (evt_stream){
-return (function (p1__20868_SHARP_){return ewen.flapjax_cljs.sendEvent.call(null,evt_stream,p1__20868_SHARP_);
+return (function (p1__21065_SHARP_){return ewen.flapjax_cljs.sendEvent.call(null,evt_stream,p1__21065_SHARP_);
 });})(evt_stream))
 );return new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [evt_stream,(function (){return cljs.core.dorun.call(null,cljs.core.map.call(null,domina.events.unlisten_by_key_BANG_,listen_key));
 })], null);
 });
 var extract_events__2 = (function (src,event_type){var evt_stream = ewen.flapjax_cljs.receiverE.call(null);var listen_key = domina.events.listen_BANG_.call(null,src,event_type.call(null,ewen.dragdrop.event_types),((function (evt_stream){
-return (function (p1__20867_SHARP_){return ewen.flapjax_cljs.sendEvent.call(null,evt_stream,p1__20867_SHARP_);
+return (function (p1__21064_SHARP_){return ewen.flapjax_cljs.sendEvent.call(null,evt_stream,p1__21064_SHARP_);
 });})(evt_stream))
 );return new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [evt_stream,(function (){return cljs.core.dorun.call(null,cljs.core.map.call(null,domina.events.unlisten_by_key_BANG_,listen_key));
 })], null);
@@ -69,13 +70,13 @@ ewen.dragdrop.dragEE = (function dragEE(down_events,move_events){return ewen.fla
 });
 ewen.dragdrop.create_dd = (function create_dd(down_events,move_events,up_events){return ewen.flapjax_cljs.switchE.call(null,ewen.flapjax_cljs.mergeE.call(null,ewen.dragdrop.dragEE.call(null,down_events,move_events),ewen.dragdrop.dropEE.call(null,down_events,up_events)));
 });
-ewen.dragdrop.E__GT_EE = (function E__GT_EE(E){return ewen.flapjax_cljs.mapE.call(null,(function (p1__20869_SHARP_){return ewen.flapjax_cljs.oneE.call(null,p1__20869_SHARP_);
+ewen.dragdrop.E__GT_EE = (function E__GT_EE(E){return ewen.flapjax_cljs.mapE.call(null,(function (p1__21066_SHARP_){return ewen.flapjax_cljs.oneE.call(null,p1__21066_SHARP_);
 }),E);
 });
 ewen.dragdrop.long_press = (function long_press(down_events,up_events,delay_time){var down_EE = ewen.dragdrop.E__GT_EE.call(null,down_events);var delay_fn = ((function (down_EE){
-return (function (p1__20870_SHARP_){return ewen.flapjax_cljs.delayE.call(null,p1__20870_SHARP_,ewen.flapjax_cljs.constantB.call(null,delay_time));
+return (function (p1__21067_SHARP_){return ewen.flapjax_cljs.delayE.call(null,p1__21067_SHARP_,ewen.flapjax_cljs.constantB.call(null,delay_time));
 });})(down_EE))
-;var down_EE__$1 = ewen.flapjax_cljs.mapE.call(null,delay_fn,down_EE);var up_EE = ewen.dragdrop.E__GT_EE.call(null,up_events);return ewen.flapjax_cljs.filterE.call(null,(function (p1__20871_SHARP_){return cljs.core._EQ_.call(null,cljs.core.name.call(null,new cljs.core.Keyword(null,"down","down",1016993812).cljs$core$IFn$_invoke$arity$1(ewen.dragdrop.event_types)),domina.events.event_type.call(null,p1__20871_SHARP_));
+;var down_EE__$1 = ewen.flapjax_cljs.mapE.call(null,delay_fn,down_EE);var up_EE = ewen.dragdrop.E__GT_EE.call(null,up_events);return ewen.flapjax_cljs.filterE.call(null,(function (p1__21068_SHARP_){return cljs.core._EQ_.call(null,cljs.core.name.call(null,new cljs.core.Keyword(null,"down","down",1016993812).cljs$core$IFn$_invoke$arity$1(ewen.dragdrop.event_types)),domina.events.event_type.call(null,p1__21068_SHARP_));
 }),ewen.flapjax_cljs.switchE.call(null,ewen.flapjax_cljs.mergeE.call(null,down_EE__$1,up_EE)));
 });
 

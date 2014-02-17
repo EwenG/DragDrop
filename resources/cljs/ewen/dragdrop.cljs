@@ -12,7 +12,7 @@
 
 
 
-
+(js/alert (js* "'ontouchstart' in window"))
 
 (def event-types
   (if (js* "'ontouchstart' in window")
