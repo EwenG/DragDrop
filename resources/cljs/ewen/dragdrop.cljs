@@ -51,28 +51,36 @@
                              #(F-cljs/sendEvent evt-stream %))]
      [evt-stream #(dorun (map unlisten-by-key! listen-key))])))
 
-(defn dropEE [up-events]
-  (-> (fn [event]
-        (events/prevent-default event)
-        (F-cljs/oneE (event->dd-event event :drop)))
-      (F-cljs/mapE up-events)))
+(defn dropE [up-events]
+  (F-cljs/mapE
+   (fn [event]
+     (events/prevent-default event)
+     (event->dd-event event :drop))
+   up-events))
 
-(defn moveEE [move-events]
-  (-> (fn [event]
-               (events/prevent-default event)
-               (event->dd-event event :drag))
-      (F-cljs/mapE move-events)))
+(defn dropEE [down-events up-events]
+  (->> (F-cljs/mapE #(dropE up-events) down-events)
+       F-cljs/switchE
+       (F-cljs/mapE F-cljs/oneE)))
+
+(defn moveE [move-events]
+  (F-cljs/mapE
+   (fn [event]
+     (events/prevent-default event)
+     (event->dd-event event :drag))
+   move-events))
 
 (defn dragEE [down-events move-events]
-  (-> (fn [event]
-        (-> (F-cljs/oneE (event->dd-event event :handle))
-            (F-cljs/mergeE (moveEE move-events))))
-      (F-cljs/mapE down-events)))
+  (F-cljs/mapE
+   (fn [event]
+     (-> (F-cljs/oneE (event->dd-event event :handle))
+         (F-cljs/mergeE (moveE move-events))))
+   down-events))
 
 (defn create-dd
-         [down-events move-events up-events]
-  (-> (F-cljs/mergeE (dropEE up-events)
-                    (dragEE down-events move-events))
+  [down-events move-events up-events]
+  (-> (dragEE down-events move-events)
+      (F-cljs/mergeE (dropEE down-events up-events))
       F-cljs/switchE))
 
 
