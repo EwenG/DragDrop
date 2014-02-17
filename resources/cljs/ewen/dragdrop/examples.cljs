@@ -135,8 +135,7 @@
 
                  (->> (F-cljs/filterE #(:handle %) dd-events)
                       (F-cljs/mapE (fn [{:keys [left top]}]
-                                     (om/set-state! owner :handle-location [left top])
-                                     (om/set-state! owner :dragging true))))
+                                     (om/set-state! owner :handle-location [left top]))))
 
                  (->> (F-cljs/filterE #(:drag %) dd-events)
                       (F-cljs/mapE (fn [{:keys [left top]}]
@@ -144,6 +143,7 @@
                                            (om/get-state owner :init-location)
                                            [handle-left handle-top]
                                            (om/get-state owner :handle-location)]
+                                       (om/set-state! owner :dragging true)
                                        (om/set-state! owner :location
                                                       [(+ init-left (- left handle-left))
                                                        (+ init-top (- top handle-top))])))))
