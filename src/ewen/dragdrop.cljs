@@ -11,9 +11,6 @@
   (:require-macros [schema.macros :as sm]))
 
 
-
-(js/alert (js* "'ontouchstart' in window"))
-
 (def event-types
   (if (js* "'ontouchstart' in window")
     {:down :touchstart
