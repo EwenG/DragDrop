@@ -44,7 +44,7 @@
                  (F-cljs/mapE #(prn (str (.-clientX (events/raw-event %)))) move-events)
                  (F-cljs/mapE #(prn (str (.-offsetX (events/raw-event %)))) move-events)
                  (F-cljs/mapE #(prn (str (.-screenX (events/raw-event %)))) move-events)
-                 (F-cljs/mapE #(prn (str (.-touches (events/raw-event %)))) move-events)
+                 (F-cljs/mapE #(prn (str (js-keys (.getBrowserEvent (events/raw-event %))))) move-events)
                  (om/set-state! owner :unlisten (comp up-unlisten
                                                       down-unlisten
                                                       move-unlisten))
