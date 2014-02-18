@@ -40,6 +40,7 @@
                      [move-events move-unlisten] (dd/extract-events :move)
                      dd-events (dd/create-dd down-events move-events up-events)]
                  (F-cljs/mapE #(prn (str (.-pageX (events/raw-event %)))) move-events)
+                 (F-cljs/mapE #(prn (str (js-keys (events/raw-event %)))) move-events)
                  (om/set-state! owner :unlisten (comp up-unlisten
                                                       down-unlisten
                                                       move-unlisten))
