@@ -39,11 +39,7 @@
                      [down-events down-unlisten] (dd/extract-events node :down)
                      [move-events move-unlisten] (dd/extract-events :move)
                      dd-events (dd/create-dd down-events move-events up-events)]
-                 (F-cljs/mapE #(prn (str (.-pageX (events/raw-event %)))) move-events)
                  (F-cljs/mapE #(prn (str (js-keys (events/raw-event %)))) move-events)
-                 (F-cljs/mapE #(prn (str (.-clientX (events/raw-event %)))) move-events)
-                 (F-cljs/mapE #(prn (str (.-offsetX (events/raw-event %)))) move-events)
-                 (F-cljs/mapE #(prn (str (.-screenX (events/raw-event %)))) move-events)
                  (F-cljs/mapE #(prn (str (js-keys (.getBrowserEvent (events/raw-event %))))) move-events)
                  (om/set-state! owner :unlisten (comp up-unlisten
                                                       down-unlisten
