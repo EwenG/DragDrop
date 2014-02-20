@@ -4,7 +4,6 @@ goog.addDependency("asserts/asserts.js", ['goog.asserts', 'goog.asserts.Assertio
 goog.addDependency("array/array.js", ['goog.array', 'goog.array.ArrayLike'], ['goog.asserts']);
 goog.addDependency("object/object.js", ['goog.object'], []);
 goog.addDependency("string/stringbuffer.js", ['goog.string.StringBuffer'], []);
-goog.addDependency("string/stringformat.js", ['goog.string.format'], ['goog.string']);
 goog.addDependency("dom/classes.js", ['goog.dom.classes'], ['goog.array']);
 goog.addDependency("useragent/useragent.js", ['goog.userAgent'], ['goog.string']);
 goog.addDependency("dom/browserfeature.js", ['goog.dom.BrowserFeature'], ['goog.userAgent']);
@@ -37,3 +36,4 @@ goog.addDependency("events/listener.js", ['goog.events.Listener'], ['goog.events
 goog.addDependency("events/events.js", ['goog.events', 'goog.events.Key'], ['goog.array', 'goog.debug.entryPointRegistry', 'goog.debug.errorHandlerWeakDep', 'goog.events.BrowserEvent', 'goog.events.BrowserFeature', 'goog.events.Event', 'goog.events.EventWrapper', 'goog.events.Listenable', 'goog.events.Listener', 'goog.object', 'goog.userAgent']);
 goog.addDependency("functions/functions.js", ['goog.functions'], []);
 goog.addDependency("dojo/dom/query.js", ['goog.dom.query'], ['goog.array', 'goog.dom', 'goog.functions', 'goog.string', 'goog.userAgent']);
+goog.addDependency("string/stringformat.js", ['goog.string.format'], ['goog.string']);

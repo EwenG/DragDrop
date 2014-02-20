@@ -117,7 +117,7 @@ ewen.flapjax_cljs.extractValueB_Atom = cljs.core.memoize.call(null,(function (at
 }));
 return ewen.flapjax_cljs.startsWith.call(null,receiv,cljs.core.deref.call(null,atom_in));
 }));
-cljs.core.swap_BANG_.call(null,ewen.flapjax_cljs.extractValueB.method_table,(function (p1__8519_SHARP_){return cljs.core.assoc.call(null,p1__8519_SHARP_,cljs.core.Atom,ewen.flapjax_cljs.extractValueB_Atom);
+cljs.core.swap_BANG_.call(null,ewen.flapjax_cljs.extractValueB.method_table,(function (p1__159399_SHARP_){return cljs.core.assoc.call(null,p1__159399_SHARP_,cljs.core.Atom,ewen.flapjax_cljs.extractValueB_Atom);
 }));
 
 //# sourceMappingURL=flapjax_cljs.js.map

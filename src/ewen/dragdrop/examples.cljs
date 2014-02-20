@@ -22,8 +22,6 @@
   (om/get-state owner :dragging))
 
 
-#_(-> (sel "#typical-dd") single-node gstyle/getPosition gloc->vec)
-
 
 (defn typical-draggable [cursor owner]
   (reify
@@ -39,13 +37,10 @@
                      [down-events down-unlisten] (dd/extract-events node :down)
                      [move-events move-unlisten] (dd/extract-events :move)
                      dd-events (dd/create-dd down-events move-events up-events)]
-                 (F-cljs/mapE #(prn (str (js-keys (events/raw-event %)))) move-events)
-                 (F-cljs/mapE #(prn (str (.-pageX (.item (.-changedTouches (.getBrowserEvent (events/raw-event %))) 0)))) move-events)
                  (om/set-state! owner :unlisten (comp up-unlisten
                                                       down-unlisten
                                                       move-unlisten))
                  (om/set-state! owner :dd-events dd-events)
-
                  (->> (F-cljs/filterE #(:handle %) dd-events)
                       (F-cljs/mapE (fn [{:keys [left top]}]
                                      (om/set-state! owner :handle-location [left top]))))
@@ -56,7 +51,7 @@
                                            (om/get-state owner :init-location)
                                            [handle-left handle-top]
                                            (om/get-state owner :handle-location)]
-                                       (om/set-state! owner :dragging true)
+                                       #_(om/set-state! owner :dragging true)
                                        (om/set-state! owner
                                                       :location
                                                       [(+ init-left (- left handle-left))

@@ -10,6 +10,7 @@
             [ewen.flapjax-cljs :as F-cljs])
   (:require-macros [schema.macros :as sm]))
 
+#_(F-cljs/mapE #(prn (str (.-pageX (.item (.-changedTouches (.getBrowserEvent (events/raw-event %))) 0)))) move-events)
 
 (def event-types
   (if (js* "'ontouchstart' in window")
