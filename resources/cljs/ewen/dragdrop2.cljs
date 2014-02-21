@@ -2,10 +2,10 @@
   (:require [domina.events :as events :refer [listen! unlisten! unlisten-by-key!]]
             [domina.css :refer [sel]]
             [domina :refer [single-node]]
-            [ewen.mult.async :as masync]
+            [ewen.async-plus :as async+]
             [cljs.core.async :as async])
   (:require-macros [cljs.core.async.macros :refer [go go-loop]]
-                   [ewen.mult.async.macros :as masyncm]))
+                   [ewen.async-plus.macros :as async+m]))
 
 
 (def event-types
@@ -44,22 +44,26 @@
   ([event-type]
    (extract-events nil event-type)))
 
+
 (defn create-dd
   [down-events move-events up-events]
-  (let [out-ch (async/chan)]
-    (go-loop []
-             (when-let [down-e (masyncm/<! down-events)]
-               (async/put! out-ch down-e)
-               (masyncm/go-loop [move-ch move-events
-                                 up-ch up-events]
-                                (let [[move-or-up _] (async/alts! [up-ch move-ch]
-                                                                  {:priority true})
-                                      e-type (events/event-type move-or-up)]
-                                  (async/put! out-ch move-or-up)
-                                  (when (= "mousemove" e-type)
-                                    (recur move-ch up-ch))))
-             (recur)))
-    (async/mult out-ch)))
+  (let [out-mix (async/mix (async/chan))
+        move-ch (async/tap move-events (async/chan))
+        up-ch (async/tap up-events (async/chan))]
+    (async/toggle out-mix {move-ch {:mute true}})
+    (async/toggle out-mix {up-ch {:mute true}})
+    (async+m/go-loop [down-ch down-events]
+             (when-let [down-e (async/<! down-ch)]
+               (async/>! (async/muxch* out-mix) down-e)
+               (async/toggle out-mix {move-ch {:mute false}})
+               (async/toggle out-mix {up-ch {:mute false}})
+               (recur down-ch)))
+    (async+m/go-loop [up-ch2 up-events]
+             (when-let [up-e (async/<! up-ch2)]
+               (async/toggle out-mix {move-ch {:mute true}})
+               (async/toggle out-mix {up-ch {:mute true}})
+               (recur up-ch2)))
+    (async/mult (async/muxch* out-mix))))
 
 (comment
 
@@ -68,7 +72,7 @@
            (when-let [val (async/<! ch)]
              (prn val) (recur ch)))
 
-  (masync/close! ccc)
+  (async+/close! ccc)
 
   (def down-events (extract-events (-> (sel "#typical-dd") single-node) :down))
   (def move-events (extract-events :move))
@@ -79,5 +83,24 @@
            (when-let [val (async/<! ch)]
              (prn (events/event-type val))
              (recur ch)))
+
+  (async+/close! uu)
+
+
+  (def gg (async/mult (async/chan)))
+
+  (def pred-ch (async/chan))
+  (def gg-filtered (async+/filter< pred-ch gg))
+
+
+  (async+m/go-loop [gg-ch gg-filtered]
+                   (when-let [tt (async/<! gg-ch)]
+                     (prn tt)
+                     (recur gg-ch)))
+
+  (go (async/>! (async/muxch* gg) 3))
+  (go (async/>! (async/muxch* gg) 2))
+
+  (go (async/>! pred-ch #(= 2 %)))
 
  )

@@ -106,7 +106,7 @@ ewen.flapjax_cljs.blindB = (function blindB(sourceB,intervalB){return sourceB.bl
 });
 ewen.flapjax_cljs.calmB = (function calmB(sourceB,intervalB){return sourceB.calmB(intervalB);
 });
-ewen.flapjax_cljs.extractValueB = (function (){var method_table__4261__auto__ = cljs.core.atom.call(null,cljs.core.PersistentArrayMap.EMPTY);var prefer_table__4262__auto__ = cljs.core.atom.call(null,cljs.core.PersistentArrayMap.EMPTY);var method_cache__4263__auto__ = cljs.core.atom.call(null,cljs.core.PersistentArrayMap.EMPTY);var cached_hierarchy__4264__auto__ = cljs.core.atom.call(null,cljs.core.PersistentArrayMap.EMPTY);var hierarchy__4265__auto__ = cljs.core.get.call(null,cljs.core.PersistentArrayMap.EMPTY,new cljs.core.Keyword(null,"hierarchy","hierarchy",3129050535),cljs.core.get_global_hierarchy.call(null));return (new cljs.core.MultiFn("extractValueB",cljs.core.type,new cljs.core.Keyword(null,"default","default",2558708147),hierarchy__4265__auto__,method_table__4261__auto__,prefer_table__4262__auto__,method_cache__4263__auto__,cached_hierarchy__4264__auto__));
+ewen.flapjax_cljs.extractValueB = (function (){var method_table__4315__auto__ = cljs.core.atom.call(null,cljs.core.PersistentArrayMap.EMPTY);var prefer_table__4316__auto__ = cljs.core.atom.call(null,cljs.core.PersistentArrayMap.EMPTY);var method_cache__4317__auto__ = cljs.core.atom.call(null,cljs.core.PersistentArrayMap.EMPTY);var cached_hierarchy__4318__auto__ = cljs.core.atom.call(null,cljs.core.PersistentArrayMap.EMPTY);var hierarchy__4319__auto__ = cljs.core.get.call(null,cljs.core.PersistentArrayMap.EMPTY,new cljs.core.Keyword(null,"hierarchy","hierarchy",3129050535),cljs.core.get_global_hierarchy.call(null));return (new cljs.core.MultiFn("extractValueB",cljs.core.type,new cljs.core.Keyword(null,"default","default",2558708147),hierarchy__4319__auto__,method_table__4315__auto__,prefer_table__4316__auto__,method_cache__4317__auto__,cached_hierarchy__4318__auto__));
 })();
 cljs.core._add_method.call(null,ewen.flapjax_cljs.extractValueB,new cljs.core.Keyword(null,"default","default",2558708147),(function (in_obj){return F.extractValueB.call(null,in_obj);
 }));
@@ -117,7 +117,7 @@ ewen.flapjax_cljs.extractValueB_Atom = cljs.core.memoize.call(null,(function (at
 }));
 return ewen.flapjax_cljs.startsWith.call(null,receiv,cljs.core.deref.call(null,atom_in));
 }));
-cljs.core.swap_BANG_.call(null,ewen.flapjax_cljs.extractValueB.method_table,(function (p1__159399_SHARP_){return cljs.core.assoc.call(null,p1__159399_SHARP_,cljs.core.Atom,ewen.flapjax_cljs.extractValueB_Atom);
+cljs.core.swap_BANG_.call(null,ewen.flapjax_cljs.extractValueB.method_table,(function (p1__30513_SHARP_){return cljs.core.assoc.call(null,p1__30513_SHARP_,cljs.core.Atom,ewen.flapjax_cljs.extractValueB_Atom);
 }));
 
 //# sourceMappingURL=flapjax_cljs.js.map

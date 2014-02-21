@@ -11,9 +11,9 @@ goog.addDependency("../cljs/core/async/impl/dispatch.js", ['cljs.core.async.impl
 goog.addDependency("../cljs/core/async/impl/channels.js", ['cljs.core.async.impl.channels'], ['cljs.core.async.impl.buffers', 'cljs.core', 'cljs.core.async.impl.dispatch', 'cljs.core.async.impl.protocols']);
 goog.addDependency("../cljs/core/async/impl/timers.js", ['cljs.core.async.impl.timers'], ['cljs.core', 'cljs.core.async.impl.channels', 'cljs.core.async.impl.dispatch', 'cljs.core.async.impl.protocols']);
 goog.addDependency("../cljs/core/async.js", ['cljs.core.async'], ['cljs.core.async.impl.ioc_helpers', 'cljs.core.async.impl.buffers', 'cljs.core', 'cljs.core.async.impl.channels', 'cljs.core.async.impl.dispatch', 'cljs.core.async.impl.protocols', 'cljs.core.async.impl.timers']);
-goog.addDependency("../ewen/mult/async.js", ['ewen.mult.async'], ['cljs.core', 'cljs.core.async']);
+goog.addDependency("../ewen/async_plus.js", ['ewen.async_plus'], ['cljs.core', 'cljs.core.async']);
 goog.addDependency("../domina/css.js", ['domina.css'], ['cljs.core', 'goog.dom', 'domina', 'goog.dom.query']);
-goog.addDependency("../ewen/dragdrop2.js", ['ewen.dragdrop2'], ['cljs.core', 'domina.events', 'ewen.mult.async', 'domina', 'cljs.core.async', 'domina.css']);
+goog.addDependency("../ewen/dragdrop2.js", ['ewen.dragdrop2'], ['cljs.core', 'domina.events', 'domina', 'ewen.async_plus', 'cljs.core.async', 'domina.css']);
 goog.addDependency("../schema/utils.js", ['schema.utils'], ['cljs.core', 'goog.string', 'goog.string.format']);
 goog.addDependency("../schema/core.js", ['schema.core'], ['cljs.core', 'schema.utils', 'clojure.string']);
 goog.addDependency("../om/dom.js", ['om.dom'], ['cljs.core']);
