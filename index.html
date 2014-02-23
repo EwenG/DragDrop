@@ -29,32 +29,49 @@
   (reify
     om/IDidMount
     (did-mount [_ node]
-               (let [dims (-> (om/get-node owner "typical-draggable")
-                              gstyle/getSize gsize->vec)]
-                 (om/set-state! owner :dimensions dims))
-               (let [[up-events up-unlisten] (dd/extract-events :up)
-                     [down-events down-unlisten] (dd/extract-events node :down)
-                     [move-events move-unlisten] (dd/extract-events :move)
+               (let [dims (-&gt; (om/get-node owner "typical-draggable")
+                              gstyle/getSize gsize-&gt;vec)
+                     init-loc (-&gt; (om/get-node owner "typical-draggable")
+                                  gstyle/getPosition gloc-&gt;vec)]
+                 (om/set-state! owner :dimensions dims)
+                 (om/set-state! owner :init-location init-loc))
+               (let [up-events (dd/extract-events :up)
+                     down-events (dd/extract-events node :down)
+                     move-events (dd/extract-events :move)
                      dd-events (dd/create-dd down-events move-events up-events)]
-                 (om/set-state! owner :unlisten (comp up-unlisten
-                                                      down-unlisten
-                                                      move-unlisten))
+                 (om/set-state! owner :unlisten (comp #(async+/close! up-events)
+                                                      #(async+/close! down-events)
+                                                      #(async+/close! move-events)))
                  (om/set-state! owner :dd-events dd-events)
-
-                 (->> (F-cljs/filterE #(:handle %) dd-events)
-                      (F-cljs/mapE (fn [{:keys [left top]}]
-                                     (om/set-state! owner :dragging true)
-                                     (om/set-state! owner :location [left top]))))
-
-                 (->> (F-cljs/filterE #(:drag %) dd-events)
-                      (F-cljs/mapE (fn [{:keys [left top]}]
-                                     (om/set-state! owner :location [left top]))))
-
-                 (->> (F-cljs/filterE #(:drop %) dd-events)
-                      (F-cljs/mapE #(om/set-state! owner :dragging false)))))
+                 (let [handle-events (async+/filter&lt; #(:handle %) dd-events)]
+                   (async+m/go-loop [handle-ch handle-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/&lt;! handle-ch)]
+                                      (om/set-state! owner :handle-location [left top])
+                                      (recur handle-ch))))
+                 (let [drag-events (async+/filter&lt; #(:drag %) dd-events)]
+                   (async+m/go-loop [drag-ch drag-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/&lt;! drag-ch)]
+                                      (let [[init-left init-top]
+                                           (om/get-state owner :init-location)
+                                           [handle-left handle-top]
+                                           (om/get-state owner :handle-location)]
+                                       (om/set-state! owner :dragging true)
+                                       (om/set-state! owner
+                                                      :location
+                                                      [(+ init-left (- left handle-left))
+                                                       (+ init-top (- top handle-top))]))
+                                      (recur drag-ch))))
+                 (let [drop-events (async+/filter&lt; #(:drop %) dd-events)]
+                   (async+m/go-loop [drop-ch drop-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/&lt;! drop-ch)]
+                                      (om/set-state! owner :dragging false)
+                                      (recur drop-ch))))))
     om/IWillUnmount
-    (will-unmount [_ _]
-                  ((om/get-state! owner :unlisten)))
+    (will-unmount [_]
+                  ((om/get-state owner :unlisten)))
     om/IRenderState
     (render-state [_ state]
                   (let [style (cond
@@ -62,8 +79,7 @@
                                (let [[x y] (:location state)
                                      [w h] (:dimensions state)]
                                  (js-obj "position" "absolute"
-                                         "top" (- y (/ h 2))
-                                         "left" (- x (/ w 2))
+                                         "left" x "top" y
                                          "z-index" 1
                                          "width" w "height" h))
                                :else
@@ -85,35 +101,51 @@
   (reify
     om/IDidMount
     (did-mount [_ node]
-               (let [dims (-> (om/get-node owner "delayed-draggable")
-                              gstyle/getSize gsize->vec)]
-                 (om/set-state! owner :dimensions dims))
-               (let [[up-events up-unlisten] (dd/extract-events :up)
-                     [down-events down-unlisten] (dd/extract-events node :down)
-                     [move-events move-unlisten] (dd/extract-events :move)
+               (let [dims (-&gt; (om/get-node owner "delayed-draggable")
+                              gstyle/getSize gsize-&gt;vec)
+                     init-loc (-&gt; (om/get-node owner "delayed-draggable")
+                                  gstyle/getPosition gloc-&gt;vec)]
+                 (om/set-state! owner :dimensions dims)
+                 (om/set-state! owner :init-location init-loc))
+               (let [up-events (dd/extract-events :up)
+                     down-events (dd/extract-events node :down)
+                     move-events (dd/extract-events :move)
                      dd-events (dd/create-dd down-events
-                                             (-> move-events
-                                                 <font color="red">(F-cljs/delayE (F-cljs/constantB 500))</font>)
+                               <font color="red">(async+/delay&lt; 500 move-events)</font>
                                              up-events)]
-                 (om/set-state! owner :unlisten (comp up-unlisten
-                                                      down-unlisten
-                                                      move-unlisten))
+                 (om/set-state! owner :unlisten (comp #(async+/close! up-events)
+                                                      #(async+/close! down-events)
+                                                      #(async+/close! move-events)))
                  (om/set-state! owner :dd-events dd-events)
-
-                 (->> (F-cljs/filterE #(:handle %) dd-events)
-                      (F-cljs/mapE (fn [{:keys [left top]}]
-                                     (om/set-state! owner :dragging true)
-                                     (om/set-state! owner :location [left top]))))
-
-                 (->> (F-cljs/filterE #(:drag %) dd-events)
-                      (F-cljs/mapE (fn [{:keys [left top]}]
-                                     (om/set-state! owner :location [left top]))))
-
-                 (->> (F-cljs/filterE #(:drop %) dd-events)
-                      (F-cljs/mapE #(om/set-state! owner :dragging false)))))
+                 (let [handle-events (async+/filter&lt; #(:handle %) dd-events)]
+                   (async+m/go-loop [handle-ch handle-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/&lt;! handle-ch)]
+                                      (om/set-state! owner :handle-location [left top])
+                                      (recur handle-ch))))
+                 (let [drag-events (async+/filter&lt; #(:drag %) dd-events)]
+                   (async+m/go-loop [drag-ch drag-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/&lt;! drag-ch)]
+                                      (let [[init-left init-top]
+                                           (om/get-state owner :init-location)
+                                           [handle-left handle-top]
+                                           (om/get-state owner :handle-location)]
+                                       (om/set-state! owner :dragging true)
+                                       (om/set-state! owner
+                                                      :location
+                                                      [(+ init-left (- left handle-left))
+                                                       (+ init-top (- top handle-top))]))
+                                      (recur drag-ch))))
+                 (let [drop-events (async+/filter&lt; #(:drop %) dd-events)]
+                   (async+m/go-loop [drop-ch drop-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/&lt;! drop-ch)]
+                                      (om/set-state! owner :dragging false)
+                                      (recur drop-ch))))))
     om/IWillUnmount
-    (will-unmount [_ _]
-                  ((om/get-state! owner :unlisten)))
+    (will-unmount [_]
+                  ((om/get-state owner :unlisten)))
     om/IRenderState
     (render-state [_ state]
                   (let [style (cond
@@ -121,8 +153,7 @@
                                (let [[x y] (:location state)
                                      [w h] (:dimensions state)]
                                  (js-obj "position" "absolute"
-                                         "top" (- y (/ h 2))
-                                         "left" (- x (/ w 2))
+                                         "left" x "top" y
                                          "z-index" 1
                                          "width" w "height" h))
                                :else
@@ -133,7 +164,7 @@
                                            "well")
                              "style" style
                              "ref" "delayed-draggable")
-                     "Drag me! But I'm slow!")))))
+                     "Drag me! But i'm slow...")))))
                     </pre>
                     <div id="delayed-dd"></div>
                 </div>
@@ -144,42 +175,52 @@
   (reify
     om/IDidMount
     (did-mount [_ node]
-               (let [dims (-> (om/get-node owner "hook-draggable")
-                              gstyle/getSize gsize->vec)]
-                 (om/set-state! owner :dimensions dims))
-               (let [[up-events up-unlisten] (dd/extract-events :up)
-                     [down-events down-unlisten] (dd/extract-events node :down)
-                     [move-events move-unlisten] (dd/extract-events :move)
-                     dd-events (dd/create-dd down-events
-                                             move-events
-                                             up-events)]
-                 (om/set-state! owner :unlisten (comp up-unlisten
-                                                      down-unlisten
-                                                      move-unlisten))
+               (let [dims (-&gt; (om/get-node owner "hook-draggable")
+                              gstyle/getSize gsize-&gt;vec)
+                     init-loc (-&gt; (om/get-node owner "hook-draggable")
+                                  gstyle/getPosition gloc-&gtvec)]
+                 (om/set-state! owner :dimensions dims)
+                 (om/set-state! owner :init-location init-loc))
+               (let [up-events (dd/extract-events :up)
+                     down-events (dd/extract-events node :down)
+                     move-events (dd/extract-events :move)
+                     dd-events (dd/create-dd down-events move-events up-events)]
+                 (om/set-state! owner :unlisten (comp #(async+/close! up-events)
+                                                      #(async+/close! down-events)
+                                                      #(async+/close! move-events)))
                  (om/set-state! owner :dd-events dd-events)
-
-                 (->> (F-cljs/filterE #(:handle %) dd-events)
-                      (F-cljs/mapE (fn [{:keys [left top]}]
-                                     (om/set-state! owner :dragging true)
-                                     (om/set-state! owner :location [left top])
-                                     <font color="red">(-> (sel "#hook-div")
-                                     single-node
-                                     (.-innerHTML)
-                                     (set! "Handled!"))</font>)))
-
-                 (->> (F-cljs/filterE #(:drag %) dd-events)
-                      (F-cljs/mapE (fn [{:keys [left top]}]
-                                     (om/set-state! owner :location [left top]))))
-
-                 (->> (F-cljs/filterE #(:drop %) dd-events)
-                      (F-cljs/mapE (fn [] (om/set-state! owner :dragging false)
-                                     <font color="red">(-> (sel "#hook-div")
-                                     single-node
-                                     (.-innerHTML)
-                                     (set! "Droped!"))</font>)))))
+                 (let [handle-events (async+/filter&lt; #(:handle %) dd-events)]
+                   (async+m/go-loop [handle-ch handle-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/&lt;! handle-ch)]
+                                      (om/set-state! owner :handle-location [left top])
+                                      <font color="red">(set! (.-innerHTML node) "Handled")</font>
+                                      (recur handle-ch))))
+                 (let [drag-events (async+/filter&lt; #(:drag %) dd-events)]
+                   (async+m/go-loop [drag-ch drag-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/&lt;! drag-ch)]
+                                      (let [[init-left init-top]
+                                           (om/get-state owner :init-location)
+                                           [handle-left handle-top]
+                                           (om/get-state owner :handle-location)]
+                                       (om/set-state! owner :dragging true)
+                                       (om/set-state! owner
+                                                      :location
+                                                      [(+ init-left (- left handle-left))
+                                                       (+ init-top (- top handle-top))])
+                                         <font color="red">(set! (.-innerHTML node) "Drag"))</font>
+                                      (recur drag-ch))))
+                 (let [drop-events (async+/filter&lt; #(:drop %) dd-events)]
+                   (async+m/go-loop [drop-ch drop-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/&lt;! drop-ch)]
+                                      (om/set-state! owner :dragging false)
+                                      <font color="red">(set! (.-innerHTML node) "Droped")</font>
+                                      (recur drop-ch))))))
     om/IWillUnmount
-    (will-unmount [_ _]
-                  ((om/get-state! owner :unlisten)))
+    (will-unmount [_]
+                  ((om/get-state owner :unlisten)))
     om/IRenderState
     (render-state [_ state]
                   (let [style (cond
@@ -187,8 +228,7 @@
                                (let [[x y] (:location state)
                                      [w h] (:dimensions state)]
                                  (js-obj "position" "absolute"
-                                         "top" (- y (/ h 2))
-                                         "left" (- x (/ w 2))
+                                         "left" x "top" y
                                          "z-index" 1
                                          "width" w "height" h))
                                :else
@@ -197,7 +237,6 @@
                      (js-obj "className" (if (dragging? owner)
                                            "well dragging"
                                            "well")
-                             "id" "hook-div"
                              "style" style
                              "ref" "hook-draggable")
                      "Drag me!")))))
@@ -211,34 +250,49 @@
   (reify
     om/IDidMount
     (did-mount [_ node]
-               (let [dims (-> (om/get-node owner "long-press-draggable")
-                              gstyle/getSize gsize->vec)]
-                 (om/set-state! owner :dimensions dims))
-               (let [[up-events up-unlisten] (dd/extract-events :up)
-                     [down-events down-unlisten] (dd/extract-events node :down)
-                     [move-events move-unlisten] (dd/extract-events :move)
-                     dd-events (dd/create-dd <font color="red">(dd/long-press down-events up-events 1000)
-                                             move-events
-                                             up-events)</font>]
-                 (om/set-state! owner :unlisten (comp up-unlisten
-                                                      down-unlisten
-                                                      move-unlisten))
+               (let [dims (-&gt; (om/get-node owner "long-press-draggable")
+                              gstyle/getSize gsize-&gt;vec)
+                     init-loc (-&gt; (om/get-node owner "long-press-draggable")
+                                  gstyle/getPosition gloc-&gt;vec)]
+                 (om/set-state! owner :dimensions dims)
+                 (om/set-state! owner :init-location init-loc))
+               (let [up-events (dd/extract-events :up)
+                     down-events (dd/extract-events node :down)
+                     move-events (dd/extract-events :move)
+                     dd-events (dd/create-dd <font color="red">(dd/long-press down-events up-events 1000)</font> move-events up-events)]
+                 (om/set-state! owner :unlisten (comp #(async+/close! up-events)
+                                                      #(async+/close! down-events)
+                                                      #(async+/close! move-events)))
                  (om/set-state! owner :dd-events dd-events)
-
-                 (->> (F-cljs/filterE #(:handle %) dd-events)
-                      (F-cljs/mapE (fn [{:keys [left top]}]
-                                     (om/set-state! owner :dragging true)
-                                     (om/set-state! owner :location [left top]))))
-
-                 (->> (F-cljs/filterE #(:drag %) dd-events)
-                      (F-cljs/mapE (fn [{:keys [left top]}]
-                                     (om/set-state! owner :location [left top]))))
-
-                 (->> (F-cljs/filterE #(:drop %) dd-events)
-                      (F-cljs/mapE (fn [] (om/set-state! owner :dragging false))))))
+                 (let [handle-events (async+/filter&lt; #(:handle %) dd-events)]
+                   (async+m/go-loop [handle-ch handle-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/&lt;! handle-ch)]
+                                      (om/set-state! owner :handle-location [left top])
+                                      (recur handle-ch))))
+                 (let [drag-events (async+/filter&lt; #(:drag %) dd-events)]
+                   (async+m/go-loop [drag-ch drag-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/&lt;! drag-ch)]
+                                      (let [[init-left init-top]
+                                           (om/get-state owner :init-location)
+                                           [handle-left handle-top]
+                                           (om/get-state owner :handle-location)]
+                                       (om/set-state! owner :dragging true)
+                                       (om/set-state! owner
+                                                      :location
+                                                      [(+ init-left (- left handle-left))
+                                                       (+ init-top (- top handle-top))]))
+                                      (recur drag-ch))))
+                 (let [drop-events (async+/filter&lt; #(:drop %) dd-events)]
+                   (async+m/go-loop [drop-ch drop-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/&lt;! drop-ch)]
+                                      (om/set-state! owner :dragging false)
+                                      (recur drop-ch))))))
     om/IWillUnmount
-    (will-unmount [_ _]
-                  ((om/get-state! owner :unlisten)))
+    (will-unmount [_]
+                  ((om/get-state owner :unlisten)))
     om/IRenderState
     (render-state [_ state]
                   (let [style (cond
@@ -246,8 +300,7 @@
                                (let [[x y] (:location state)
                                      [w h] (:dimensions state)]
                                  (js-obj "position" "absolute"
-                                         "top" (- y (/ h 2))
-                                         "left" (- x (/ w 2))
+                                         "left" x "top" y
                                          "z-index" 1
                                          "width" w "height" h))
                                :else

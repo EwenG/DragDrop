@@ -42,10 +42,13 @@
      :top (:clientY event)}))
 
 (defn convert-event-dispatcher [event]
-  (case (events/event-type event)
-        "mousemove" (event->dd-event event :drag)
-        "mousedown" (event->dd-event event :handle)
-        "mouseup" (event->dd-event event :drop)))
+  (cond
+   (= (events/event-type event)
+      (name (:move event-types))) (event->dd-event event :drag)
+   (= (events/event-type event)
+      (name (:down event-types))) (event->dd-event event :handle)
+   (= (events/event-type event)
+      (name (:up event-types))) (event->dd-event event :drop)))
 
 (defn timestamp [event]
   (-> (events/raw-event event)
