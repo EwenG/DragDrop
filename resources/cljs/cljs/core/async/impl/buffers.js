@@ -7,8 +7,8 @@ cljs.core.async.impl.buffers.acopy = (function acopy(src,src_start,dest,dest_sta
 if((cnt < len))
 {(dest[(dest_start + cnt)] = (src[(src_start + cnt)]));
 {
-var G__29936 = (cnt + 1);
-cnt = G__29936;
+var G__23998 = (cnt + 1);
+cnt = G__23998;
 continue;
 }
 } else
@@ -29,7 +29,7 @@ this.arr = arr;
 })
 cljs.core.async.impl.buffers.RingBuffer.cljs$lang$type = true;
 cljs.core.async.impl.buffers.RingBuffer.cljs$lang$ctorStr = "cljs.core.async.impl.buffers/RingBuffer";
-cljs.core.async.impl.buffers.RingBuffer.cljs$lang$ctorPrWriter = (function (this__4024__auto__,writer__4025__auto__,opt__4026__auto__){return cljs.core._write.call(null,writer__4025__auto__,"cljs.core.async.impl.buffers/RingBuffer");
+cljs.core.async.impl.buffers.RingBuffer.cljs$lang$ctorPrWriter = (function (this__3970__auto__,writer__3971__auto__,opt__3972__auto__){return cljs.core._write.call(null,writer__3971__auto__,"cljs.core.async.impl.buffers/RingBuffer");
 });
 cljs.core.async.impl.buffers.RingBuffer.prototype.pop = (function (){var self__ = this;
 var _ = this;if((self__.length === 0))
@@ -79,15 +79,15 @@ return self__.arr = new_arr;
 }
 });
 cljs.core.async.impl.buffers.RingBuffer.prototype.cleanup = (function (keep_QMARK_){var self__ = this;
-var this$ = this;var n__4305__auto__ = self__.length;var x = 0;while(true){
-if((x < n__4305__auto__))
-{var v_29937 = this$.pop();if(keep_QMARK_.call(null,v_29937))
-{this$.unshift(v_29937);
+var this$ = this;var n__4251__auto__ = self__.length;var x = 0;while(true){
+if((x < n__4251__auto__))
+{var v_23999 = this$.pop();if(keep_QMARK_.call(null,v_23999))
+{this$.unshift(v_23999);
 } else
 {}
 {
-var G__29938 = (x + 1);
-x = G__29938;
+var G__24000 = (x + 1);
+x = G__24000;
 continue;
 }
 } else
@@ -116,7 +116,7 @@ this.cljs$lang$protocol_mask$partition0$ = 2;
 })
 cljs.core.async.impl.buffers.FixedBuffer.cljs$lang$type = true;
 cljs.core.async.impl.buffers.FixedBuffer.cljs$lang$ctorStr = "cljs.core.async.impl.buffers/FixedBuffer";
-cljs.core.async.impl.buffers.FixedBuffer.cljs$lang$ctorPrWriter = (function (this__4024__auto__,writer__4025__auto__,opt__4026__auto__){return cljs.core._write.call(null,writer__4025__auto__,"cljs.core.async.impl.buffers/FixedBuffer");
+cljs.core.async.impl.buffers.FixedBuffer.cljs$lang$ctorPrWriter = (function (this__3970__auto__,writer__3971__auto__,opt__3972__auto__){return cljs.core._write.call(null,writer__3971__auto__,"cljs.core.async.impl.buffers/FixedBuffer");
 });
 cljs.core.async.impl.buffers.FixedBuffer.prototype.cljs$core$ICounted$_count$arity$1 = (function (this$){var self__ = this;
 var this$__$1 = this;return self__.buf.length;
@@ -151,7 +151,7 @@ this.cljs$lang$protocol_mask$partition0$ = 2;
 })
 cljs.core.async.impl.buffers.DroppingBuffer.cljs$lang$type = true;
 cljs.core.async.impl.buffers.DroppingBuffer.cljs$lang$ctorStr = "cljs.core.async.impl.buffers/DroppingBuffer";
-cljs.core.async.impl.buffers.DroppingBuffer.cljs$lang$ctorPrWriter = (function (this__4024__auto__,writer__4025__auto__,opt__4026__auto__){return cljs.core._write.call(null,writer__4025__auto__,"cljs.core.async.impl.buffers/DroppingBuffer");
+cljs.core.async.impl.buffers.DroppingBuffer.cljs$lang$ctorPrWriter = (function (this__3970__auto__,writer__3971__auto__,opt__3972__auto__){return cljs.core._write.call(null,writer__3971__auto__,"cljs.core.async.impl.buffers/DroppingBuffer");
 });
 cljs.core.async.impl.buffers.DroppingBuffer.prototype.cljs$core$ICounted$_count$arity$1 = (function (this$){var self__ = this;
 var this$__$1 = this;return self__.buf.length;
@@ -187,7 +187,7 @@ this.cljs$lang$protocol_mask$partition0$ = 2;
 })
 cljs.core.async.impl.buffers.SlidingBuffer.cljs$lang$type = true;
 cljs.core.async.impl.buffers.SlidingBuffer.cljs$lang$ctorStr = "cljs.core.async.impl.buffers/SlidingBuffer";
-cljs.core.async.impl.buffers.SlidingBuffer.cljs$lang$ctorPrWriter = (function (this__4024__auto__,writer__4025__auto__,opt__4026__auto__){return cljs.core._write.call(null,writer__4025__auto__,"cljs.core.async.impl.buffers/SlidingBuffer");
+cljs.core.async.impl.buffers.SlidingBuffer.cljs$lang$ctorPrWriter = (function (this__3970__auto__,writer__3971__auto__,opt__3972__auto__){return cljs.core._write.call(null,writer__3971__auto__,"cljs.core.async.impl.buffers/SlidingBuffer");
 });
 cljs.core.async.impl.buffers.SlidingBuffer.prototype.cljs$core$ICounted$_count$arity$1 = (function (this$){var self__ = this;
 var this$__$1 = this;return self__.buf.length;

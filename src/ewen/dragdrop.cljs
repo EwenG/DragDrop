@@ -1,16 +1,12 @@
 (ns ewen.dragdrop
-  "A drag and drop library written in clojurescript."
   (:require [domina.events :as events :refer [listen! unlisten! unlisten-by-key!]]
             [domina.css :refer [sel]]
             [domina :refer [single-node]]
-            [om.core :as om :include-macros true]
-            [om.dom :as dom :include-macros true]
-            [goog.style :as gstyle]
-            [schema.core :as s]
-            [ewen.flapjax-cljs :as F-cljs])
-  (:require-macros [schema.macros :as sm]))
+            [ewen.async-plus :as async+]
+            [cljs.core.async :as async])
+  (:require-macros [cljs.core.async.macros :refer [go go-loop]]
+                   [ewen.async-plus.macros :as async+m]))
 
-#_(F-cljs/mapE #(prn (str (.-pageX (.item (.-changedTouches (.getBrowserEvent (events/raw-event %))) 0)))) move-events)
 
 (def event-types
   (if (js* "'ontouchstart' in window")
@@ -27,117 +23,138 @@
      :out :mouseout
      :click :mouseclick}))
 
-
-(sm/defschema event-types-s (->> (keys event-types)
-                                 (apply s/enum)))
-
 (defn event->dd-event [event event-type]
   {event-type (events/target event)
    :left (:clientX event)
    :top (:clientY event)})
 
+(defn convert-event-dispatcher [event]
+  (case (events/event-type event)
+        "mousemove" (event->dd-event event :drag)
+        "mousedown" (event->dd-event event :handle)
+        "mouseup" (event->dd-event event :drop)))
+
+(defn timestamp [event]
+  (-> (events/raw-event event)
+      (.getBrowserEvent)
+      (.-timeStamp)))
 
 (defn extract-events
   ([src event-type]
-   (let [evt-stream (F-cljs/receiverE)
-         listen-key (listen! src (event-type event-types)
-                             #(F-cljs/sendEvent evt-stream %))]
-     [evt-stream #(dorun (map unlisten-by-key! listen-key))]))
+   (let [out-ch (async/chan)
+         close-ch (async/chan)
+         listen-fn #(when-not (async/put! out-ch %)
+                      (async/put! close-ch :unlisten))
+         listen-key (if src (listen! src (event-type event-types)
+                                     listen-fn)
+                      (listen! (event-type event-types)
+                               listen-fn))]
+     (go (async/<! close-ch)
+         (dorun (map unlisten-by-key! listen-key)))
+     (async/mult out-ch)))
   ([event-type]
-   (let [evt-stream (F-cljs/receiverE)
-         listen-key (listen! (event-type event-types)
-                             #(F-cljs/sendEvent evt-stream %))]
-     [evt-stream #(dorun (map unlisten-by-key! listen-key))])))
+   (extract-events nil event-type)))
 
-(defn dropE [up-events]
-  (F-cljs/mapE
-   (fn [event]
-     (events/prevent-default event)
-     (event->dd-event event :drop))
-   up-events))
 
-(defn dropEE [down-events up-events]
-  (->> (F-cljs/mapE #(dropE up-events) down-events)
-       F-cljs/switchE
-       (F-cljs/mapE F-cljs/oneE)))
-
-(defn moveE [move-events]
-  (F-cljs/mapE
-   (fn [event]
-     (events/prevent-default event)
-     (event->dd-event event :drag))
-   move-events))
-
-(defn dragEE [down-events move-events]
-  (F-cljs/mapE
-   (fn [event]
-     (-> (F-cljs/oneE (event->dd-event event :handle))
-         (F-cljs/mergeE (moveE move-events))))
-   down-events))
+(defn create-dd-raw
+  [down-events move-events up-events]
+  (let [out-mix (async/mix (async/chan))
+        pred-ch (async/chan)
+        move-events (async+/filter< pred-ch move-events)
+        move-ch (async/tap move-events (async/chan))
+        up-ch (async/tap up-events (async/chan))]
+    (async/toggle out-mix {move-ch {:mute true}})
+    (async/toggle out-mix {up-ch {:mute true}})
+    (async+m/go-loop [down-ch down-events]
+             (when-let [down-e (async/<! down-ch)]
+               (async/put! pred-ch #(> (timestamp %)
+                                       (timestamp down-e)))
+               (async/put! (async/muxch* out-mix) down-e)
+               (async/toggle out-mix {move-ch {:mute false}})
+               (async/toggle out-mix {up-ch {:mute false}})
+               (recur down-ch)))
+    (async+m/go-loop [up-ch2 up-events]
+             (when-let [up-e (async/<! up-ch2)]
+               (async/toggle out-mix {move-ch {:mute true}})
+               (async/toggle out-mix {up-ch {:mute true}})
+               (recur up-ch2)))
+    (async/mult (async/muxch* out-mix))))
 
 (defn create-dd
   [down-events move-events up-events]
-  (-> (dragEE down-events move-events)
-      (F-cljs/mergeE (dropEE down-events up-events))
-      F-cljs/switchE))
-
-
-
-
-
-(defn E->EE [E]
-  (F-cljs/mapE #(F-cljs/oneE %) E))
+  (async+/map< convert-event-dispatcher
+   (create-dd-raw down-events move-events up-events)))
 
 (defn long-press [down-events up-events delay-time]
-  (let [down-EE (E->EE down-events)
-        delay-fn #(F-cljs/delayE % (F-cljs/constantB delay-time))
-        down-EE (F-cljs/mapE delay-fn down-EE)
-        up-EE (E->EE up-events)]
-    (->> (F-cljs/mergeE down-EE up-EE)
-         F-cljs/switchE
-         (F-cljs/filterE #(= (-> (:down event-types) name)
-                             (events/event-type %))))))
-
+  (let [long-press-events (async/mult (async/chan))]
+    (go-loop [down-ch (async/tap down-events (async/chan))]
+             (when-let [down-event (async/<! down-ch)]
+               (let [up-ch (async/tap up-events (async/chan))
+                     [e alt-ch] (async/alts!
+                                 [(async/timeout delay-time)
+                                  up-ch])]
+                 (async/untap up-events up-ch)
+                 (when (not= up-ch alt-ch)
+                   (async/>! (async/muxch* long-press-events) down-event))
+                 (recur down-ch)))
+             (async/untap down-events down-ch))
+    long-press-events))
 
 (comment
 
-  (enable-console-print!)
-
-  (def jjjk (single-node (sel ".draggable")))
-  (def iii (create-dd (first (extract-events jjjk :down))
-                      (first (extract-events jjjk :move))
-                      (first (extract-events jjjk :up))))
-  (F-cljs/mapE prn iii)
-
-
-  (def uu (extract-events (single-node (sel ".draggable")) :down))
-  (def ss (first uu))
-  (def unlisten (second uu))
-  (F-cljs/mapE prn ss)
-  (unlisten)
+  (def down-events (extract-events (-> (sel "#typical-dd") single-node) :down))
+  (def up-events (extract-events :up))
+  (def yyy (long-press down-events up-events 1000))
+  (go-loop [ch (async/tap yyy (async/chan))]
+           (when-let [val (async/<! ch)]
+             (prn val) (recur ch)))
 
 
-  (set! schema.utils/type-of identity)
+  (def ccc (extract-events (-> (sel "#typical-dd") single-node) :down))
+  (go-loop [ch (async/tap ccc (async/chan))]
+           (when-let [val (async/<! ch)]
+             (prn val) (recur ch)))
 
-  (defrecord FnSchema [output-schema input-schemas] ;; input-schemas sorted by arity
-  s/Schema
-  (walker [this]
-    (fn [x]
-      (if (fn? x)
-        x
-        (sm/validation-error this x (list 'fn? (su/value-name x))))))
-  (explain [this]
-    (if (> (count input-schemas) 1)
-      (list* '=>* (explain output-schema) (map s/explain-input-schema input-schemas))
-      (list* '=> (explain output-schema) (s/explain-input-schema (first input-schemas))))))
+  (async+/close! ccc)
 
+  (def down-events (extract-events (-> (sel "#typical-dd") single-node) :down))
+  (def move-events (extract-events :move))
+  (def up-events (extract-events :up))
+  (def uu (create-dd down-events move-events up-events))
 
+  (go-loop [ch (async/tap uu (async/chan))]
+           (when-let [val (async/<! ch)]
+             (prn val)
+             (recur ch)))
 
-
-
-
-
+  (async+/close! uu)
 
 
+  (def yy (async/chan))
+  (def gg (async/mult yy))
 
-  )
+  (def pred-ch (async/chan))
+  (def gg-filtered (async+/filter< pred-ch gg))
+
+
+  (async+m/go-loop [gg-ch gg-filtered]
+                   (when-let [tt (async/<! gg-ch)]
+                     (prn tt)
+                     (recur gg-ch)))
+
+  (go (async/>! yy 3))
+  (go (async/>! yy 2))
+
+  (go (async/>! pred-ch #(= 2 %)))
+
+  (async/put! (async/muxch* gg) 4)
+  (go-loop [gg-ch (async/tap gg (async/chan))]
+                   (when-let [tt (async/<! gg-ch)]
+                     (prn tt)
+                     (recur gg-ch)))
+
+  (async/untap-all gg)
+  (async/close! pred-ch)
+  (async+/close! gg)
+
+ )

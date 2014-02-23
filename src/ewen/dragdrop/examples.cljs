@@ -7,8 +7,12 @@
             [goog.style :as gstyle]
             [schema.core :as s]
             [ewen.flapjax-cljs :as F-cljs]
-            [ewen.dragdrop :as dd])
-  (:require-macros [schema.macros :as sm]))
+            [ewen.dragdrop :as dd]
+            [ewen.async-plus :as async+]
+            [cljs.core.async :as async])
+  (:require-macros [schema.macros :as sm]
+                   [cljs.core.async.macros :refer [go go-loop]]
+                   [ewen.async-plus.macros :as async+m]))
 
 (enable-console-print!)
 
@@ -33,34 +37,42 @@
                                   gstyle/getPosition gloc->vec)]
                  (om/set-state! owner :dimensions dims)
                  (om/set-state! owner :init-location init-loc))
-               (let [[up-events up-unlisten] (dd/extract-events :up)
-                     [down-events down-unlisten] (dd/extract-events node :down)
-                     [move-events move-unlisten] (dd/extract-events :move)
+               (let [up-events (dd/extract-events :up)
+                     down-events (dd/extract-events node :down)
+                     move-events (dd/extract-events :move)
                      dd-events (dd/create-dd down-events move-events up-events)]
-                 (om/set-state! owner :unlisten (comp up-unlisten
-                                                      down-unlisten
-                                                      move-unlisten))
+                 (om/set-state! owner :unlisten (comp #(async+/close! up-events)
+                                                      #(async+/close! down-events)
+                                                      #(async+/close! move-events)))
                  (om/set-state! owner :dd-events dd-events)
-                 (->> (F-cljs/filterE #(:handle %) dd-events)
-                      (F-cljs/mapE (fn [{:keys [left top]}]
-                                     (om/set-state! owner :handle-location [left top]))))
-
-                 (->> (F-cljs/filterE #(:drag %) dd-events)
-                      (F-cljs/mapE (fn [{:keys [left top]}]
-                                     (let [[init-left init-top]
+                 (let [handle-events (async+/filter< #(:handle %) dd-events)]
+                   (async+m/go-loop [handle-ch handle-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/<! handle-ch)]
+                                      (om/set-state! owner :handle-location [left top])
+                                      (recur handle-ch))))
+                 (let [drag-events (async+/filter< #(:drag %) dd-events)]
+                   (async+m/go-loop [drag-ch drag-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/<! drag-ch)]
+                                      (let [[init-left init-top]
                                            (om/get-state owner :init-location)
                                            [handle-left handle-top]
                                            (om/get-state owner :handle-location)]
-                                       #_(om/set-state! owner :dragging true)
+                                       (om/set-state! owner :dragging true)
                                        (om/set-state! owner
                                                       :location
                                                       [(+ init-left (- left handle-left))
-                                                       (+ init-top (- top handle-top))])))))
-
-                 (->> (F-cljs/filterE #(:drop %) dd-events)
-                      (F-cljs/mapE #(om/set-state! owner :dragging false)))))
+                                                       (+ init-top (- top handle-top))]))
+                                      (recur drag-ch))))
+                 (let [drop-events (async+/filter< #(:drop %) dd-events)]
+                   (async+m/go-loop [drop-ch drop-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/<! drop-ch)]
+                                      (om/set-state! owner :dragging false)
+                                      (recur drop-ch))))))
     om/IWillUnmount
-    (will-unmount [_ _]
+    (will-unmount [_]
                   ((om/get-state owner :unlisten)))
     om/IRenderState
     (render-state [_ state]
@@ -87,7 +99,6 @@
 
 
 
-
 (om/root app-state
   (fn [app owner]
     (om/component
@@ -95,6 +106,11 @@
         (om/build typical-draggable app {:init-state {}}))))
          (-> (sel "#typical-dd") single-node))
 
+#_(om/root app-state
+  (fn [app owner]
+    (om/component
+      (dom/div nil)))
+         (-> (sel "#typical-dd") single-node))
 
 
 
@@ -118,38 +134,45 @@
                                   gstyle/getPosition gloc->vec)]
                  (om/set-state! owner :dimensions dims)
                  (om/set-state! owner :init-location init-loc))
-               (let [[up-events up-unlisten] (dd/extract-events :up)
-                     [down-events down-unlisten] (dd/extract-events node :down)
-                     [move-events move-unlisten] (dd/extract-events :move)
+               (let [up-events (dd/extract-events :up)
+                     down-events (dd/extract-events node :down)
+                     move-events (dd/extract-events :move)
                      dd-events (dd/create-dd down-events
-                                             (-> move-events
-                                                 (F-cljs/delayE (F-cljs/constantB 500)))
+                                             (async+/delay< 500 move-events)
                                              up-events)]
-                 (om/set-state! owner :unlisten (comp up-unlisten
-                                                      down-unlisten
-                                                      move-unlisten))
+                 (om/set-state! owner :unlisten (comp #(async+/close! up-events)
+                                                      #(async+/close! down-events)
+                                                      #(async+/close! move-events)))
                  (om/set-state! owner :dd-events dd-events)
-
-                 (->> (F-cljs/filterE #(:handle %) dd-events)
-                      (F-cljs/mapE (fn [{:keys [left top]}]
-                                     (om/set-state! owner :handle-location [left top]))))
-
-                 (->> (F-cljs/filterE #(:drag %) dd-events)
-                      (F-cljs/mapE (fn [{:keys [left top]}]
-                                     (let [[init-left init-top]
+                 (let [handle-events (async+/filter< #(:handle %) dd-events)]
+                   (async+m/go-loop [handle-ch handle-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/<! handle-ch)]
+                                      (om/set-state! owner :handle-location [left top])
+                                      (recur handle-ch))))
+                 (let [drag-events (async+/filter< #(:drag %) dd-events)]
+                   (async+m/go-loop [drag-ch drag-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/<! drag-ch)]
+                                      (let [[init-left init-top]
                                            (om/get-state owner :init-location)
                                            [handle-left handle-top]
                                            (om/get-state owner :handle-location)]
                                        (om/set-state! owner :dragging true)
-                                       (om/set-state! owner :location
+                                       (om/set-state! owner
+                                                      :location
                                                       [(+ init-left (- left handle-left))
-                                                       (+ init-top (- top handle-top))])))))
-
-                 (->> (F-cljs/filterE #(:drop %) dd-events)
-                      (F-cljs/mapE #(om/set-state! owner :dragging false)))))
+                                                       (+ init-top (- top handle-top))]))
+                                      (recur drag-ch))))
+                 (let [drop-events (async+/filter< #(:drop %) dd-events)]
+                   (async+m/go-loop [drop-ch drop-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/<! drop-ch)]
+                                      (om/set-state! owner :dragging false)
+                                      (recur drop-ch))))))
     om/IWillUnmount
-    (will-unmount [_ _]
-                  ((om/get-state! owner :unlisten)))
+    (will-unmount [_]
+                  ((om/get-state owner :unlisten)))
     om/IRenderState
     (render-state [_ state]
                   (let [style (cond
@@ -168,7 +191,8 @@
                                            "well")
                              "style" style
                              "ref" "delayed-draggable")
-                     "Drag me! But I'm slow!")))))
+                     "Drag me! But i'm slow...")))))
+
 
 (om/root app-state
   (fn [app owner]
@@ -176,7 +200,6 @@
       (dom/div nil
         (om/build delayed-draggable app {:init-state {}}))))
          (-> (sel "#delayed-dd") single-node))
-
 
 
 
@@ -204,45 +227,46 @@
                                   gstyle/getPosition gloc->vec)]
                  (om/set-state! owner :dimensions dims)
                  (om/set-state! owner :init-location init-loc))
-               (let [[up-events up-unlisten] (dd/extract-events :up)
-                     [down-events down-unlisten] (dd/extract-events node :down)
-                     [move-events move-unlisten] (dd/extract-events :move)
-                     dd-events (dd/create-dd down-events
-                                             move-events
-                                             up-events)]
-                 (om/set-state! owner :unlisten (comp up-unlisten
-                                                      down-unlisten
-                                                      move-unlisten))
+               (let [up-events (dd/extract-events :up)
+                     down-events (dd/extract-events node :down)
+                     move-events (dd/extract-events :move)
+                     dd-events (dd/create-dd down-events move-events up-events)]
+                 (om/set-state! owner :unlisten (comp #(async+/close! up-events)
+                                                      #(async+/close! down-events)
+                                                      #(async+/close! move-events)))
                  (om/set-state! owner :dd-events dd-events)
-
-                 (->> (F-cljs/filterE #(:handle %) dd-events)
-                      (F-cljs/mapE (fn [{:keys [left top]}]
-                                     (om/set-state! owner :handle-location [left top])
-                                     (-> (sel "#hook-div")
-                                     single-node
-                                     (.-innerHTML)
-                                     (set! "Handled!")))))
-
-                 (->> (F-cljs/filterE #(:drag %) dd-events)
-                      (F-cljs/mapE (fn [{:keys [left top]}]
-                                     (let [[init-left init-top]
+                 (let [handle-events (async+/filter< #(:handle %) dd-events)]
+                   (async+m/go-loop [handle-ch handle-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/<! handle-ch)]
+                                      (om/set-state! owner :handle-location [left top])
+                                      (set! (.-innerHTML node) "Handled")
+                                      (recur handle-ch))))
+                 (let [drag-events (async+/filter< #(:drag %) dd-events)]
+                   (async+m/go-loop [drag-ch drag-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/<! drag-ch)]
+                                      (let [[init-left init-top]
                                            (om/get-state owner :init-location)
                                            [handle-left handle-top]
                                            (om/get-state owner :handle-location)]
                                        (om/set-state! owner :dragging true)
-                                       (om/set-state! owner :location
+                                       (om/set-state! owner
+                                                      :location
                                                       [(+ init-left (- left handle-left))
-                                                       (+ init-top (- top handle-top))])))))
-
-                 (->> (F-cljs/filterE #(:drop %) dd-events)
-                      (F-cljs/mapE (fn [] (om/set-state! owner :dragging false)
-                                     (-> (sel "#hook-div")
-                                     single-node
-                                     (.-innerHTML)
-                                     (set! "Droped!")))))))
+                                                       (+ init-top (- top handle-top))])
+                                        (set! (.-innerHTML node) "Drag"))
+                                      (recur drag-ch))))
+                 (let [drop-events (async+/filter< #(:drop %) dd-events)]
+                   (async+m/go-loop [drop-ch drop-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/<! drop-ch)]
+                                      (om/set-state! owner :dragging false)
+                                      (set! (.-innerHTML node) "Droped")
+                                      (recur drop-ch))))))
     om/IWillUnmount
-    (will-unmount [_ _]
-                  ((om/get-state! owner :unlisten)))
+    (will-unmount [_]
+                  ((om/get-state owner :unlisten)))
     om/IRenderState
     (render-state [_ state]
                   (let [style (cond
@@ -259,10 +283,10 @@
                      (js-obj "className" (if (dragging? owner)
                                            "well dragging"
                                            "well")
-                             "id" "hook-div"
                              "style" style
                              "ref" "hook-draggable")
                      "Drag me!")))))
+
 
 
 
@@ -272,6 +296,7 @@
       (dom/div nil
         (om/build hook-draggable app {:init-state {}}))))
          (-> (sel "#hook-dd") single-node))
+
 
 
 
@@ -291,37 +316,43 @@
                                   gstyle/getPosition gloc->vec)]
                  (om/set-state! owner :dimensions dims)
                  (om/set-state! owner :init-location init-loc))
-               (let [[up-events up-unlisten] (dd/extract-events :up)
-                     [down-events down-unlisten] (dd/extract-events node :down)
-                     [move-events move-unlisten] (dd/extract-events :move)
-                     dd-events (dd/create-dd (dd/long-press down-events up-events 1000)
-                                             move-events
-                                             up-events)]
-                 (om/set-state! owner :unlisten (comp up-unlisten
-                                                      down-unlisten
-                                                      move-unlisten))
+               (let [up-events (dd/extract-events :up)
+                     down-events (dd/extract-events node :down)
+                     move-events (dd/extract-events :move)
+                     dd-events (dd/create-dd (dd/long-press down-events up-events 1000) move-events up-events)]
+                 (om/set-state! owner :unlisten (comp #(async+/close! up-events)
+                                                      #(async+/close! down-events)
+                                                      #(async+/close! move-events)))
                  (om/set-state! owner :dd-events dd-events)
-
-                 (->> (F-cljs/filterE #(:handle %) dd-events)
-                      (F-cljs/mapE (fn [{:keys [left top]}]
-                                     (om/set-state! owner :handle-location [left top]))))
-
-                 (->> (F-cljs/filterE #(:drag %) dd-events)
-                      (F-cljs/mapE (fn [{:keys [left top]}]
-                                     (let [[init-left init-top]
+                 (let [handle-events (async+/filter< #(:handle %) dd-events)]
+                   (async+m/go-loop [handle-ch handle-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/<! handle-ch)]
+                                      (om/set-state! owner :handle-location [left top])
+                                      (recur handle-ch))))
+                 (let [drag-events (async+/filter< #(:drag %) dd-events)]
+                   (async+m/go-loop [drag-ch drag-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/<! drag-ch)]
+                                      (let [[init-left init-top]
                                            (om/get-state owner :init-location)
                                            [handle-left handle-top]
                                            (om/get-state owner :handle-location)]
                                        (om/set-state! owner :dragging true)
-                                       (om/set-state! owner :location
+                                       (om/set-state! owner
+                                                      :location
                                                       [(+ init-left (- left handle-left))
-                                                       (+ init-top (- top handle-top))])))))
-
-                 (->> (F-cljs/filterE #(:drop %) dd-events)
-                      (F-cljs/mapE (fn [] (om/set-state! owner :dragging false))))))
+                                                       (+ init-top (- top handle-top))]))
+                                      (recur drag-ch))))
+                 (let [drop-events (async+/filter< #(:drop %) dd-events)]
+                   (async+m/go-loop [drop-ch drop-events]
+                                    (when-let [{:keys [left top]}
+                                               (async/<! drop-ch)]
+                                      (om/set-state! owner :dragging false)
+                                      (recur drop-ch))))))
     om/IWillUnmount
-    (will-unmount [_ _]
-                  ((om/get-state! owner :unlisten)))
+    (will-unmount [_]
+                  ((om/get-state owner :unlisten)))
     om/IRenderState
     (render-state [_ state]
                   (let [style (cond
@@ -341,7 +372,6 @@
                              "style" style
                              "ref" "long-press-draggable")
                      "Long press... Then drag me!")))))
-
 
 
 (om/root app-state
