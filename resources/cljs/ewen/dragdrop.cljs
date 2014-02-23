@@ -7,6 +7,7 @@
   (:require-macros [cljs.core.async.macros :refer [go go-loop]]
                    [ewen.async-plus.macros :as async+m]))
 
+#_(F-cljs/mapE #(prn (str (.-pageX (.item (.-changedTouches (.getBrowserEvent (events/raw-event %))) 0)))) move-events)
 
 (def event-types
   (if (js* "'ontouchstart' in window")
@@ -24,9 +25,23 @@
      :click :mouseclick}))
 
 (defn event->dd-event [event event-type]
-  {event-type (events/target event)
-   :left (:clientX event)
-   :top (:clientY event)})
+  (if (js* "'ontouchstart' in window")
+    {event-type (events/target event)
+     :left (-> event
+               events/raw-event
+               (.getBrowserEvent)
+               (.-changedTouches)
+               (.item 0)
+               (.-pageX))
+     :top (-> event
+               events/raw-event
+               (.getBrowserEvent)
+               (.-changedTouches)
+               (.item 0)
+               (.-pageY))}
+    {event-type (events/target event)
+     :left (:clientX event)
+     :top (:clientY event)}))
 
 (defn convert-event-dispatcher [event]
   (case (events/event-type event)
