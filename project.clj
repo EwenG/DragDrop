@@ -4,7 +4,6 @@
 
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/clojurescript "0.0-2156"]
-                 [ewen/flapjax-cljs "1.0.2"]
                  [domina "1.0.2"]
                  [prismatic/schema "0.2.1-SNAPSHOT"]
                  [org.clojure/core.async "0.1.278.0-76b25b-alpha"]]
