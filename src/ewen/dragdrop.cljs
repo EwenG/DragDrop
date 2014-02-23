@@ -7,8 +7,6 @@
   (:require-macros [cljs.core.async.macros :refer [go go-loop]]
                    [ewen.async-plus.macros :as async+m]))
 
-#_(F-cljs/mapE #(prn (str (.-pageX (.item (.-changedTouches (.getBrowserEvent (events/raw-event %))) 0)))) move-events)
-
 (def event-types
   (if (js* "'ontouchstart' in window")
     {:down :touchstart
