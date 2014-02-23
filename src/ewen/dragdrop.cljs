@@ -59,8 +59,10 @@
   ([src event-type]
    (let [out-ch (async/chan)
          close-ch (async/chan)
-         listen-fn #(when-not (async/put! out-ch %)
-                      (async/put! close-ch :unlisten))
+         listen-fn (fn [e]
+                     (events/prevent-default e)
+                     (when-not (async/put! out-ch e)
+                       (async/put! close-ch :unlisten)))
          listen-key (if src (listen! src (event-type event-types)
                                      listen-fn)
                       (listen! (event-type event-types)
