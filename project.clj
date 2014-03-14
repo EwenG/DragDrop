@@ -12,13 +12,12 @@
 
   :source-paths ["src"]
 
-  :profiles {:dev {:dependencies [[om "0.3.5"]
-                                  [com.facebook/react "0.8.0.1"]
-                                  [com.cemerick/clojurescript.test "0.3.0-SNAPSHOT"]]}}
+  :profiles {:dev {:dependencies [[com.cemerick/clojurescript.test "0.3.0-SNAPSHOT"]]}}
 
+  :hooks [leiningen.cljsbuild]
   :cljsbuild {
     :builds [{:id "dev"
-              :source-paths ["src" "test"]
+              :source-paths ["src"]
               :compiler {
                 :output-to "resources/cljs/dragdrop.js"
                 :output-dir "resources/cljs/"

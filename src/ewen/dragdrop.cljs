@@ -8,6 +8,7 @@
                    [ewen.async-plus.macros :as async+m]))
 
 (def event-types
+  "A map from keywords to event types. Usefull for multiplatform (desktop/mobile) compatibility."
   (if (js* "'ontouchstart' in window")
     {:down :touchstart
      :up :touchend
@@ -22,7 +23,13 @@
      :out :mouseout
      :click :mouseclick}))
 
-(defn event->dd-event [event event-type]
+(defn event->dd-event
+  "Convert a browser event into a clojure map representing the same event.
+  Example of event:
+  {:drag #browser-event
+   :left 56
+   :top 98}"
+  [event event-type]
   (if (js* "'ontouchstart' in window")
     {event-type (events/target event)
      :left (-> event
@@ -41,7 +48,8 @@
      :left (:clientX event)
      :top (:clientY event)}))
 
-(defn convert-event-dispatcher [event]
+(defn convert-event-dispatcher
+  [event]
   (cond
    (= (events/event-type event)
       (name (:move event-types))) (event->dd-event event :drag)
@@ -51,11 +59,14 @@
       (name (:up event-types))) (event->dd-event event :drop)))
 
 (defn timestamp [event]
+  "Extract the 'timestamp' field of a browser event."
   (-> (events/raw-event event)
       (.getBrowserEvent)
       (.-timeStamp)))
 
 (defn extract-events
+  "Returns a core.async 'mult' that fires the events of type 'event-type' occuring on the DOM element 'src'.
+  THe callback function listening for events is unregistered when the mult closes."
   ([src event-type]
    (let [out-ch (async/chan)
          close-ch (async/chan)
@@ -74,7 +85,13 @@
    (extract-events nil event-type)))
 
 
-(defn create-dd-raw
+(defn create-dd-helper
+  "Merge the given core.async mults into a single mult firing drag and drop events.
+
+  Example of fired event:
+  {:drag #browser-event
+   :left 56
+   :top 98}"
   [down-events move-events up-events]
   (let [out-mix (async/mix (async/chan))
         pred-ch (async/chan)
@@ -101,9 +118,10 @@
 (defn create-dd
   [down-events move-events up-events]
   (async+/map< convert-event-dispatcher
-   (create-dd-raw down-events move-events up-events)))
+   (create-dd-helper down-events move-events up-events)))
 
 (defn long-press [down-events up-events delay-time]
+  "Convert the given core.async mults into a mult that fires events representing long press or long click events."
   (let [long-press-events (async/mult (async/chan))]
     (go-loop [down-ch (async/tap down-events (async/chan))]
              (when-let [down-event (async/<! down-ch)]
@@ -117,6 +135,10 @@
                  (recur down-ch)))
              (async/untap down-events down-ch))
     long-press-events))
+
+
+
+
 
 (comment
 

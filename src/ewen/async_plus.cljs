@@ -1,4 +1,5 @@
 (ns ewen.async-plus
+  "core.async utilities to ease the use and the composition of core.async mults."
   (:refer-clojure :exclude [merge] :as core)
   (:require [cljs.core.async :as async])
   (:require-macros [cljs.core.async.macros :refer [go go-loop]]
@@ -47,7 +48,7 @@
 (defn merge
   ([mults] (merge mults nil))
   ([mults buf-or-n]
-   (let [out-chs (async/map async/tap mults)
+   (let [out-chs (map #(async/tap % (async/chan)) mults)
          out-ch (async/merge out-chs buf-or-n)]
      (async/mult out-ch))))
 
