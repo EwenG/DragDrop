@@ -8,7 +8,7 @@
                    [ewen.async-plus.macros :as async+m]))
 
 (def event-types
-  "A map from keywords to event types. Usefull for multiplatform (desktop/mobile) compatibility."
+  "A map from keywords to event types. Useful for multiplatform (desktop/mobile) compatibility."
   (if (js* "'ontouchstart' in window")
     {:down :touchstart
      :up :touchend
