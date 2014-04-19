@@ -54,3 +54,9 @@
 
 (defn close! [mult]
   (async/close! (async/muxch* mult)))
+
+
+
+
+;Time varying values
+

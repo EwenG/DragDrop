@@ -3,60 +3,58 @@
             [domina.css :refer [sel]]
             [domina :refer [single-node]]
             [ewen.async-plus :as async+]
-            [cljs.core.async :as async])
+            [cljs.core.async :as async]
+            [cljs.core.match])
   (:require-macros [cljs.core.async.macros :refer [go go-loop]]
-                   [ewen.async-plus.macros :as async+m]))
+                   [ewen.async-plus.macros :as async+m]
+                   [cljs.core.match.macros :refer [match]]))
 
 (def event-types
   "A map from keywords to event types. Useful for multiplatform (desktop/mobile) compatibility."
   (if (js* "'ontouchstart' in window")
-    {:down :touchstart
-     :up :touchend
-     :move :touchmove
-     :over :touchstart
-     :out :touchend
+    {:down "touchstart"
+     :up  "touchend"
+     :move "touchmove"
+     :over "touchstart"
+     :out "touchend"
      :click "tap"}
-    {:down :mousedown
-     :up :mouseup
-     :move :mousemove
-     :over :mouseover
-     :out :mouseout
-     :click :mouseclick}))
+    {:down "mousedown"
+     :up "mouseup"
+     :move "mousemove"
+     :over "mouseover"
+     :out "mouseout"
+     :click "mouseclick"}))
 
-(defn event->dd-event
-  "Convert a browser event into a clojure map representing the same event.
+
+(defn op-loc [op loc1 loc2]
+  {:left (op (:left loc1) (:left loc2))
+   :top (op (:top loc1) (:top loc2))})
+
+(defn event->loc
+  "Convert a browser event into a clojure map representing the position where the event occured.
   Example of event:
-  {:drag #browser-event
-   :left 56
+  {:left 56
    :top 98}"
-  [event event-type]
+  [event]
   (if (js* "'ontouchstart' in window")
-    {event-type (events/target event)
-     :left (-> event
+    {:left (-> event
                events/raw-event
                (.getBrowserEvent)
                (.-changedTouches)
                (.item 0)
                (.-pageX))
-     :top (-> event
+     :top  (-> event
                events/raw-event
                (.getBrowserEvent)
                (.-changedTouches)
                (.item 0)
                (.-pageY))}
-    {event-type (events/target event)
-     :left (:clientX event)
-     :top (:clientY event)}))
+    {:left (:clientX event)
+     :top  (:clientY event)}))
 
-(defn convert-event-dispatcher
-  [event]
-  (cond
-   (= (events/event-type event)
-      (name (:move event-types))) (event->dd-event event :drag)
-   (= (events/event-type event)
-      (name (:down event-types))) (event->dd-event event :handle)
-   (= (events/event-type event)
-      (name (:up event-types))) (event->dd-event event :drop)))
+
+
+
 
 (defn timestamp [event]
   "Extract the 'timestamp' field of a browser event."
@@ -68,16 +66,18 @@
   "Returns a core.async 'mult' that fires the events of type 'event-type' occuring on the DOM element 'src'.
   THe callback function listening for events is unregistered when the mult closes."
   ([src event-type]
+   (extract-events src event-type false))
+  ([src event-type prevent-default]
    (let [out-ch (async/chan)
          close-ch (async/chan)
          listen-fn (fn [e]
-                     (events/prevent-default e)
+                     (when prevent-default (events/prevent-default e))
                      (when-not (async/put! out-ch e)
                        (async/put! close-ch :unlisten)))
          listen-key (if src (listen! src (event-type event-types)
                                      listen-fn)
-                      (listen! (event-type event-types)
-                               listen-fn))]
+                            (listen! (event-type event-types)
+                                     listen-fn))]
      (go (async/<! close-ch)
          (dorun (map unlisten-by-key! listen-key)))
      (async/mult out-ch)))
@@ -85,40 +85,35 @@
    (extract-events nil event-type)))
 
 
-(defn create-dd-helper
-  "Merge the given core.async mults into a single mult firing drag and drop events.
 
-  Example of fired event:
-  {:drag #browser-event
-   :left 56
-   :top 98}"
-  [down-events move-events up-events]
-  (let [out-mix (async/mix (async/chan))
-        pred-ch (async/chan)
-        move-events (async+/filter< pred-ch move-events)
-        move-ch (async/tap move-events (async/chan))
-        up-ch (async/tap up-events (async/chan))]
-    (async/toggle out-mix {move-ch {:mute true}})
-    (async/toggle out-mix {up-ch {:mute true}})
-    (async+m/go-loop [down-ch down-events]
-             (when-let [down-e (async/<! down-ch)]
-               (async/put! pred-ch #(> (timestamp %)
-                                       (timestamp down-e)))
-               (async/put! (async/muxch* out-mix) down-e)
-               (async/toggle out-mix {move-ch {:mute false}})
-               (async/toggle out-mix {up-ch {:mute false}})
-               (recur down-ch)))
-    (async+m/go-loop [up-ch2 up-events]
-             (when-let [up-e (async/<! up-ch2)]
-               (async/toggle out-mix {move-ch {:mute true}})
-               (async/toggle out-mix {up-ch {:mute true}})
-               (recur up-ch2)))
-    (async/mult (async/muxch* out-mix))))
 
-(defn create-dd
-  [down-events move-events up-events]
-  (async+/map< convert-event-dispatcher
-   (create-dd-helper down-events move-events up-events)))
+
+
+
+
+
+
+(defn check-event-type [e type]
+  (= (type event-types) (events/event-type e)))
+
+
+
+
+(defn merge-locs
+  [loc handle-loc init-loc]
+  (let [init-left (if init-loc (:left init-loc) 0)
+        init-top (if init-loc (:top init-loc) 0)]
+    {:left (+ init-left (- (:left loc) (:left handle-loc)))
+     :top  (+ init-top (- (:top loc) (:top handle-loc)))}))
+
+
+
+
+
+
+
+
+
 
 (defn long-press [down-events up-events delay-time]
   "Convert the given core.async mults into a mult that fires events representing long press or long click events."
