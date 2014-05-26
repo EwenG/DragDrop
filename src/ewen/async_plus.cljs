@@ -55,6 +55,17 @@
 (defn close! [mult]
   (async/close! (async/muxch* mult)))
 
+(defn put! [mult val]
+  (async/put! (async/muxch* mult) val))
+
+(defn unique
+  ([mult] (unique mult nil))
+  ([mult buf-or-n]
+   (let [out-ch (async/tap mult (async/chan))
+         out-ch (async/unique out-ch buf-or-n)]
+     (async/mult out-ch))))
+
+
 
 
 
